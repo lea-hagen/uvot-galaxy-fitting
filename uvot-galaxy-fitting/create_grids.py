@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 
+from config import __ROOT__
+
 import dust_c10
 import model_parameters
 
@@ -44,7 +46,7 @@ def create_grids():
 
 
     # read in one spectrum to get some of the grid info
-    spec_lambda, age_list, spec, _, _, _ = writespec_info(pegase_file(model_parameters.pegase_path, '005','b'))
+    spec_lambda, age_list, spec, _, _, _ = writespec_info(pegase_file(__ROOT__+'/pegase_grids/', '005','b'))
 
     # limit the age to 1 Myr to 13 Gyr
     age_subset = np.where((age_list >= 1) & (age_list <= 13000))[0]
@@ -95,7 +97,7 @@ def create_grids():
         print('tau item ', str(t), ' of ', str(len(tau_list)))
 
         # read in the spectra
-        filename = pegase_file(model_parameters.pegase_path, model_parameters.metallicity, tau_list[t] )
+        filename = pegase_file(__ROOT__+'/pegase_grids/', model_parameters.metallicity, tau_list[t] )
         _, _, spec, m_stellar, m_remnant, m_gas = writespec_info(filename)
 
         # save the mass info
