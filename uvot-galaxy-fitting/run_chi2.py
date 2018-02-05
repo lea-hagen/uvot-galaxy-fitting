@@ -34,8 +34,8 @@ def run_chi2():
     #run_emcee = False
 
     # choose whether to redo emcee for regions that have already been done
-    re_run = True
-    #re_run = False
+    #re_run = True
+    re_run = False
 
     print('START TIME:')
     print(datetime.datetime.now())
@@ -147,7 +147,7 @@ def run_chi2():
 
         print('')
         print('****************************')
-        print('STARTING REGION ', choose_region)
+        print('STARTING REGION ', choose_region, ' = ', file_label[choose_region])
         print('(group ', group_num, ' does ', first_index, '-', last_index, ')')
         print('****************************')
         print('')

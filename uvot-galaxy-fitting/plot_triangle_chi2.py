@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib
 matplotlib.interactive(False)
 import matplotlib.pyplot as plt
+import pickle
 
 import model_parameters
 import best_val_chi2
@@ -71,7 +72,7 @@ def triangle(file_label, verbose=False):
                     print('     i='+str(i) + ', j='+str(j))
 
                 # smash the ln_p array along the other dimensions
-                axis_smash = np.delete(np.arange(n_dimen-1), [i,j]) 
+                axis_smash = np.delete(np.arange(n_dimen), [i,j]) 
                 plot_ln_p = np.log( np.sum(np.exp(ln_p), axis=tuple(axis_smash)) )
                 # set -inf to the minimum non-inf value
                 plot_ln_p[plot_ln_p == -np.inf] = np.min(plot_ln_p[plot_ln_p != -np.inf])
@@ -90,7 +91,8 @@ def triangle(file_label, verbose=False):
                 y_range = [np.min(results['grid_axes'][axis_label_j]),
                                np.max(results['grid_axes'][axis_label_j]) ]
                 extent = x_range[0], x_range[1], y_range[0], y_range[1]
-                print('        extent=', extent) if verbose == True
+                if verbose == True:
+                    print('        extent=', extent) 
                 
                 # plotting
                 #ax[j,i].imshow(plot_ln_p, cmap='hot', interpolation='nearest',
@@ -99,7 +101,7 @@ def triangle(file_label, verbose=False):
                 plt.imshow(plot_ln_p, cmap='hot', interpolation='nearest', #vmin=-600,
                                    aspect=(x_range[1]-x_range[0])/(y_range[1]-y_range[0]), extent=extent)
                 # and best fit
-                plt.plot(best_val[i], best_val[j], marker='x', c='limegreen',
+                plt.plot(best_val_i, best_val_j, marker='x', c='limegreen',
                              markersize=12, markeredgewidth=5)
                 
                 
@@ -110,12 +112,14 @@ def triangle(file_label, verbose=False):
                 # axis labels
                 if i == 0:
                     ax.set_ylabel(axis_label_j[:-5])
-                    print('        adding y-axis label ', axis_label_j[:-5]) if verbose == True
+                    if verbose == True:
+                        print('        adding y-axis label ', axis_label_j[:-5])
                 else:
                     ax.set_yticklabels([])
-                if j == n_dimen-2:
+                if j == n_dimen-1:
                     ax.set_xlabel(axis_label_i[:-5])
-                    print('        adding x-axis label ', axis_label_i[:-5]) if verbose == True
+                    if verbose == True:
+                        print('        adding x-axis label ', axis_label_i[:-5])
                 else:
                     ax.set_xticklabels([])
 
@@ -129,11 +133,11 @@ def triangle(file_label, verbose=False):
                     print('     plotting x='+axis_label_i)
                     print('     i='+str(i) + ', j='+str(j))
                 
-                plt.subplot(n_dimen-1, n_dimen-1, i + j*(n_dimen-1) + 1)
+                plt.subplot(n_dimen, n_dimen, i + j*(n_dimen) + 1)
                 ax = plt.gca()
 
                 # smash the ln_p array along the other dimensions
-                axis_smash = np.delete(np.arange(n_dimen-1), [i]) 
+                axis_smash = np.delete(np.arange(n_dimen), [i]) 
                 plot_ln_p = np.log( np.sum(np.exp(ln_p), axis=tuple(axis_smash)) )
 
                 # do some plotting

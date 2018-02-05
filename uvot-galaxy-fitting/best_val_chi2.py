@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 
 def best_val(file_label, verbose=True):
@@ -39,7 +40,7 @@ def best_val(file_label, verbose=True):
         
     # a file to save the results
     results_file = open('./results/results_'+file_label+'.list','w')
-    results_file.write('#  tau     av     log_age    bump     rv     log_mass    log_stellar_mass ')
+    results_file.write('#  tau     av     log_age    bump     rv     log_mass    log_stellar_mass \n')
 
     # get the indices for the best chi2
     best_chi2_index = np.where(results['new_chi2_grid'] == np.min(results['new_chi2_grid']))
@@ -58,15 +59,15 @@ def best_val(file_label, verbose=True):
 
     # corresponding best mass and stellar mass
     best_log_mass = results['new_mass_grid'][best_chi2_index][0]
-    best_log_st_mass = results['new_st_mass_grid'][best_chi2_index][0]
+    #best_log_st_mass = results['new_st_mass_grid'][best_chi2_index][0]
     results_file.write('   ' + '{:.3f}'.format(best_log_mass) )
-    results_file.write('   ' + '{:.3f}'.format(best_log_st_mass) )
+    #results_file.write('   ' + '{:.3f}'.format(best_log_st_mass) )
 
                   
     # print it all out
     if verbose == True:
         print('   best tau, av, log_age, bump, rv, log_mass, log_stellar_mass:')
-        print('   ', best_val, '  ', best_log_mass, '  ', best_log_st_mass)
+        print('   ', best_val, '  ', best_log_mass)#, '  ', best_log_st_mass)
         print('')
 
         
@@ -78,5 +79,5 @@ def best_val(file_label, verbose=True):
     # return best fits
     return {'tau':best_tau, 'av':best_av, 'log_age':best_log_age,
                 'bump':best_bump, 'rv':best_rv,
-                'log_mass':best_log_mass, 'log_st_mass':best_log_st_mass,
+                'log_mass':best_log_mass, #'log_st_mass':best_log_st_mass,
                 'best_chi2_index':best_chi2_index}

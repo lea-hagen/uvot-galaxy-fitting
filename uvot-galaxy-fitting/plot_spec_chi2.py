@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib
 matplotlib.interactive(False)
 import matplotlib.pyplot as plt
+import pickle
 
 import model_parameters
 import best_val_chi2
