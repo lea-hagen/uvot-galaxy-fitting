@@ -3,18 +3,18 @@ import numpy as np
 import scipy
 import scipy.io
 import scipy.interpolate
-import emcee
-import corner as triangle
 #import cPickle as pickle  # (only 2.x)
 import pickle
-import matplotlib
-import matplotlib.pyplot as plt
 import datetime
 import is_outlier#; reload(is_outlier)
 import os.path
 import pdb
 
 import model_parameters
+
+import best_val_chi2
+import plot_triangle_chi2
+import plot_spec_chi2
 
 # ============================================
 # HOW TO USE THIS FILE:
@@ -32,12 +32,6 @@ def run_chi2():
     # choose whether to run emcee
     run_emcee = True
     #run_emcee = False
-
-    # choose whether to make plots
-    plot_triangle = True
-    #plot_triangle = False
-    plot_spectrum = True
-    #plot_spectrum = False
 
     # choose whether to redo emcee for regions that have already been done
     re_run = True
@@ -177,7 +171,7 @@ def run_chi2():
                         'flux_list':np.reshape(data['flux_list'][:,choose_region], -1), \
                         'flux_list_err':np.reshape(data['flux_list_err'][:,choose_region], -1) }
 
-            results = chi2_grid(grid_func, model_info, sub_data)
+            results = chi2_grid(grid_func, mstar_grid_func, model_info, sub_data)
             # results is dictionary with keys new_chi2_grid, new_mass_grid, grid_axes
 
             #pdb.set_trace()
@@ -187,244 +181,31 @@ def run_chi2():
             pickle_file = open('./pickles/chi2_'+file_label[choose_region]+'.pickle','wb')
             pickle.dump( results, pickle_file)
             pickle_file.close()
-            del results
 
-
-    
-        # load the chains back in
-        print('loading chi2 results...')
-        
-        pickle_file = open('./pickles/chi2_'+file_label[choose_region]+'.pickle','rb')
-        results = pickle.load(pickle_file)
-        pickle_file.close()
-    
-    
+            
         print('END TIME:')
         print(datetime.datetime.now())
         print('')
     
-        # -------------------------
-        # extract best fit
-        # -------------------------
-    
-        print('extracting best fits...')
-    
-        matplotlib.interactive(False)
-    
-    
-        # test - remove outliers using log mass
-        # (all of the outliers are outlying together)
-        #bad = np.array( is_outlier.is_outlier(flatchain[:,3]) )
-        #flatchain = flatchain[~bad,:]
-         
-        # find the best values
-
-        
-        best_val = np.empty(n_dimen)
-        
-        # a file to save the results
-        results_file = open('./results/results_'+file_label[choose_region]+'.list','w')
-
-        # get the indices for the best chi2
-        best_chi2_index = np.where(results['new_chi2_grid'] == np.min(results['new_chi2_grid']))
-        
-        for i in range(n_dimen):
-
-    
-            # calculating
-            if i < n_dimen-1:
-                current_axis = results['axis_order'][i]
-                best_val[i] = results['grid_axes'][current_axis][best_chi2_index[i][0]]
-            if i == n_dimen-1:
-                current_axis = 'log_mass'
-                best_val[i] = results['new_mass_grid'][best_chi2_index][0]
-            print('current_axis: ', current_axis)
-            print('   Best value: ', '{:.3f}'.format(best_val[i]))
-            results_file.write('   ' + '{:.3f}'.format(best_val[i]))
-
-        best_tau, best_av, best_log_age, best_bump, best_rv, best_log_mass = best_val
-
-        # calculate a stellar mass too
-        print('calculating stellar mass...')
-        best_mstar = np.log10( 10**best_val[-1] *
-                                   mstar_grid_func(np.array([ best_tau, best_log_age ])) )
-        
-
-        print('Best mstar: ', '{:.3f}'.format(best_mstar[0]))
-        results_file.write('   ' + '{:.3f}'.format(best_mstar[0]) )
-
-                  
-        # tau, av, log age, bump, rv, log mass
-        print('   best tau, av, log_age, bump, rv, log_mass, log_stellar_mass:')
-        print('   ', best_val, '  ', best_mstar)
-        print('')
-
-        # close the file
-        results_file.write('\n')
-        results_file.close()
-
-        #pdb.set_trace()
     
         # -------------------------
         # analyze the results
         # -------------------------
 
-        print('plotting...')
+        print('analyzing results...')
 
-        # get it into probability space
-        ln_p = -0.5 * results['new_chi2_grid']
-        
-    
-        if plot_triangle == True:
-            
-    
-            # make a triangle plot
-            print('   triangle...')
+        # best value
+        best_val_chi2.best_val(file_label[choose_region])
 
-            fig = plt.figure(figsize=(10,10))
-            #fig.subplots_adjust(hspace=0.05)
-            #fig, ax = plt.subplots(n_dimen-1, n_dimen-1, sharex=True, figsize=(10,10))
+        # triangle
+        plot_triangle_chi2.triangle(file_label[choose_region])
 
-            for i in range(n_dimen-1):
+        # spectrum
+        plot_spec_chi2.spectrum(lambda_list,
+                                    data['mag_list'][:,choose_region],
+                                    data['mag_list_err'][:,choose_region],
+                                    grid_func, file_label[choose_region] )
 
-
-                for j in range(i,n_dimen-1):
-
- 
-                    #ax[j,i].set_xlim([-9,9])
-                    #ax[j,i].set_ylim([-9,9])
-
-                    axis_label_i = results['axis_order'][i]
-                    best_val_i = results['grid_axes'][axis_label_i][best_chi2_index[i]]
-                    axis_label_j = results['axis_order'][j]
-                    best_val_j = results['grid_axes'][axis_label_j][best_chi2_index[j]]
-
-                    if i != j:
-
-                        plt.subplot(n_dimen-1, n_dimen-1, i + j*(n_dimen-1) + 1)
-                        ax = plt.gca()
-
-
-                        print('')
-                        print('     plotting x='+axis_label_i + ', y='+axis_label_j)
-                        print('     i='+str(i) + ', j='+str(j))
-
-                        # smash the ln_p array along the other dimensions
-                        axis_smash = np.delete(np.arange(n_dimen-1), [i,j]) 
-                        plot_ln_p = np.log( np.sum(np.exp(ln_p), axis=tuple(axis_smash)) )
-                        # set -inf to the minimum non-inf value
-                        plot_ln_p[plot_ln_p == -np.inf] = np.min(plot_ln_p[plot_ln_p != -np.inf])
-                        # apparently also have to rotate the array
-                        plot_ln_p = np.rot90(plot_ln_p, 1)
-                        print('        ln_p dimensions: ', plot_ln_p.shape)
-                        print('        ln_p range: ', np.min(plot_ln_p), np.max(plot_ln_p))
-
-                        # debugging: do a manual ln_p
-                        #plot_ln_p = np.sum(np.indices(plot_ln_p.shape), axis=0)
-                        
-                        # figure out the axis ranges
-                        x_range = [np.min(results['grid_axes'][axis_label_i]),
-                                       np.max(results['grid_axes'][axis_label_i]) ]
-                        y_range = [np.min(results['grid_axes'][axis_label_j]),
-                                       np.max(results['grid_axes'][axis_label_j]) ]
-                        extent = x_range[0], x_range[1], y_range[0], y_range[1]
-                        print('        extent=', extent)
-                        
-                        # plotting
-                        #ax[j,i].imshow(plot_ln_p, cmap='hot', interpolation='nearest',
-                        #                   aspect=(x_range[1]-x_range[0])/(y_range[1]-y_range[0]), extent=extent)
-                        
-                        plt.imshow(plot_ln_p, cmap='hot', interpolation='nearest', #vmin=-600,
-                                           aspect=(x_range[1]-x_range[0])/(y_range[1]-y_range[0]), extent=extent)
-                        # and best fit
-                        plt.plot(best_val[i], best_val[j], marker='x', c='limegreen',
-                                     markersize=12, markeredgewidth=5)
-                        
-                        
-                        # debugging labels
-                        #plt.text(0.5, 0.1, axis_label_i[:-5], ha='center',va='center', transform=ax.transAxes)
-                        #plt.text(0.1, 0.5, axis_label_j[:-5], ha='center',va='center', transform=ax.transAxes)
-                        
-                        # axis labels
-                        if i == 0:
-                            ax.set_ylabel(axis_label_j[:-5])
-                            print('        adding y-axis label ', axis_label_j[:-5])
-                        else:
-                            ax.set_yticklabels([])
-                        if j == n_dimen-2:
-                            ax.set_xlabel(axis_label_i[:-5])
-                            print('        adding x-axis label ', axis_label_i[:-5])
-                        else:
-                            ax.set_xticklabels([])
-
-                        #if (i == 0) and (j == 3):
-                        #    pdb.set_trace()
-
-                    if i == j:
-
-                        print('')
-                        print('     plotting x='+axis_label_i)
-                        print('     i='+str(i) + ', j='+str(j))
-                        
-                        plt.subplot(n_dimen-1, n_dimen-1, i + j*(n_dimen-1) + 1)
-                        ax = plt.gca()
-
-                        # smash the ln_p array along the other dimensions
-                        axis_smash = np.delete(np.arange(n_dimen-1), [i]) 
-                        plot_ln_p = np.log( np.sum(np.exp(ln_p), axis=tuple(axis_smash)) )
-
-                        # do some plotting
-                        ax.plot(results['grid_axes'][axis_label_i], plot_ln_p,
-                                     marker='.', markersize=10)
-                        plt.xlim(np.min(results['grid_axes'][axis_label_i]), np.max(results['grid_axes'][axis_label_i]))
-                        ax.set_yticklabels([])
-                        
-                # clear non-plotted areas
-                #for j in range(0,i+1):
-                #    ax.get_xaxis().set_visible(False)
-                #    ax.get_yaxis().set_visible(False)
-
-        
-            fig.savefig('./plots/triangle_'+file_label[choose_region]+'.pdf')
-            plt.close(fig)
-
-            #pdb.set_trace()
-
-    
-        if plot_spectrum == True:
-   
-            # plot photometry
-            print('   photometry...')
-            plt.figure(figsize=(7,5))
-            plt.errorbar( np.log10(lambda_list), data['mag_list'][:,choose_region], \
-                          yerr=data['mag_list_err'][:,choose_region], fmt='ko', fillstyle='none' )
-            plt.xlim(3,5)
-            #plt.ylim(15,11.5)
-            ax = plt.gca()
-            ax.set_ylim(ax.get_ylim()[::-1])
-            plt.xlabel('Log Wavelength (A)')
-            plt.ylabel('AB Mag')
-    
-            # grab the model magnitudes for the best fit
-            model_mag = np.empty(len(lambda_list))
-            for m in range(len(lambda_list)):
-                temp = np.array([ best_tau, best_av, 10**(best_log_age), best_bump, best_rv ])
-                model_mag[m] = -2.5 * np.log10( grid_func[m](temp) * 10**best_log_mass ) - 48.6
-                #temp = np.array([ best_tau, d14_av[choose_region], 10**(3.89), 0.4, 2 ])
-                #model_mag[m] = -2.5 * np.log10( grid_func[m](temp) * 10**8.05 ) - 48.6
-    
-            print('best-fit model magnitudes:')
-            print(model_mag)
-    
-            plt.plot(np.log10(lambda_list), model_mag, 'b^')
-    
-            #plt.tight_layout(h_pad=0.1)
-            #plt.show()
-            plt.savefig('./plots/spectrum_'+file_label[choose_region]+'.pdf')
-            plt.close()
-    
-        #pdb.set_trace()
-    
     
     return 
 
@@ -432,19 +213,8 @@ def run_chi2():
 
 
 
-def rand_list(min_val, max_val, length):
-    """
-    Make a list of values uniformly randomly distributed between min_val and max_val.
-    """
 
-    return (max_val - min_val) * np.random.ranf(length) + min_val
-
-
-
-
-
-
-def chi2_grid(grid_func, model_info, data):
+def chi2_grid(grid_func, mstar_grid_func, model_info, data):
     """
     This calculates the log probability for a particular set of model parameters.
     
@@ -469,6 +239,7 @@ def chi2_grid(grid_func, model_info, data):
     
     new_chi2_grid = np.empty(length_tuple)
     new_mass_grid = np.empty(length_tuple)
+    new_st_mass_grid = np.empty(length_tuple)
 
     for index in np.ndindex(length_tuple):
     
@@ -491,6 +262,9 @@ def chi2_grid(grid_func, model_info, data):
         # calculate a mass, weighted by errors
         new_mass_grid[index] = np.average(data['flux_list']/model_flux,
                                           weights=1/(data['flux_list_err']/model_flux) )
+
+        # calculate a stellar mass
+        new_st_mass_grid[index] = new_mass_grid[index] * mstar_grid_func(np.array([ current_tau, current_age ]))
         
         # calculate chi2
         new_chi2_grid[index] = np.sum( (data['flux_list'] - new_mass_grid[index]*model_flux)**2 / data['flux_list_err']**2 )
@@ -500,7 +274,9 @@ def chi2_grid(grid_func, model_info, data):
     #print(datetime.datetime.now())
     
     # return log likelihood
-    return {'new_chi2_grid':new_chi2_grid, 'new_mass_grid':np.log10(new_mass_grid),
+    return {'new_chi2_grid':new_chi2_grid,
+                'new_mass_grid':np.log10(new_mass_grid),
+                'new_st_mass_grid':np.log10(new_st_mass_grid),
                 'grid_axes':{'tau_list':tau_list, 'av_list':av_list, 'log_age_list':log_age_list,
                                  'bump_list':bump_list, 'rv_list':rv_list},
                 'axis_order':['tau_list','av_list','log_age_list','bump_list','rv_list']  }
