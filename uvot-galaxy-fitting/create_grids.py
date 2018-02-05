@@ -125,7 +125,7 @@ def create_grids():
                 for f in range(len(model_parameters.filter_list)):
                     #mag = S.Observation(spec_slice, bp_list[f]).effstim('ABMag')
                     #mag = S.Observation(spec_slice, bp_list[f], binset=spec_slice.wave).effstim('ABMag')
-                    mag = -2.5 * np.log10(spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
+                    mag = -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
                     model_mags[t, index[0], a, index[2], index[1], f] = mag
                         
                 #pdb.set_trace()  
