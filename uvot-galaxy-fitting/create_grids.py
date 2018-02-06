@@ -165,7 +165,9 @@ def create_grids():
                   'with mass = 1 m_sun.  The model_stellar_mass contains',
                   "the fraction of that mass that's in stars.", 
                   '',
-                  'This assumes a metallicity of z=0.'+model_parameters.metallicity+'.']
+                  'This assumes a metallicity of z=0.'+model_parameters.metallicity+'.',
+                  '',
+                  'This assumes a distance of 10pc.' ]
 
     # change tau list to numpy array
     tau_list = np.array(tau_list).astype(np.float)
