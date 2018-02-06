@@ -27,6 +27,8 @@ def create_grids(filter_label, filter_file, metallicity):
     file and populate the grid with models in all filters.  If the file does
     exist, it will append any missing filters.
 
+    The resulting grid is saved as model_grid_ZZZ.pickle
+
 
     Parameters
     ----------
@@ -46,8 +48,7 @@ def create_grids(filter_label, filter_file, metallicity):
 
     Returns
     -------
-    file_path : string
-       full path to the PEGASE model file
+    nothing
     
     """
 
@@ -207,7 +208,7 @@ def create_grids(filter_label, filter_file, metallicity):
                       'model_remnant_mass':model_remnant_mass, 'model_gas_mass':model_gas_mass,
                       'filter_list':filter_label, 'lambda_list':lambda_list,
                       'readme':readme}
-    pickle_file = open('model_grid.pickle','wb')
+    pickle_file = open('model_grid_'+metallicity+'.pickle','wb')
     pickle.dump(model_info, pickle_file)
     pickle_file.close()
 
