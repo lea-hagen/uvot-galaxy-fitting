@@ -3,6 +3,7 @@ import pysynphot as S
 import matplotlib.pyplot as plt
 import pickle
 import time
+import math
 
 from config import __ROOT__
 
@@ -88,6 +89,9 @@ def create_grids():
     model_remnant_mass = np.zeros(( len(tau_list), len(age_list) ))
     model_gas_mass = np.zeros(( len(tau_list), len(age_list) ))
 
+    # set a distance of 10 pc
+    dist = 3.08567758e19
+
     
     # now go populate the array
 
@@ -100,6 +104,10 @@ def create_grids():
         # read in the spectra
         filename = pegase_file(__ROOT__+'/pegase_grids/', model_parameters.metallicity, tau_list[t] )
         _, _, spec, m_stellar, m_remnant, m_gas = writespec_info(filename)
+
+        # put spectra at the chosen distance (erg/s/A -> erg/s/cm^2/A)
+        spec = spec / (4 * math.pi * dist^2)
+
 
         # save the mass info
         model_stellar_mass[t,:] = m_stellar[age_subset]
@@ -157,7 +165,9 @@ def create_grids():
                   'with mass = 1 m_sun.  The model_stellar_mass contains',
                   "the fraction of that mass that's in stars.", 
                   '',
-                  'This assumes a metallicity of z=0.'+model_parameters.metallicity+'.']
+                  'This assumes a metallicity of z=0.'+model_parameters.metallicity+'.',
+                  '',
+                  'This assumes a distance of 10pc.' ]
 
     # change tau list to numpy array
     tau_list = np.array(tau_list).astype(np.float)
