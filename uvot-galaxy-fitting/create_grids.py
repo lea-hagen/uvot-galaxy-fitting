@@ -14,7 +14,7 @@ import spec_filter
 
 import pdb
 
-def create_grids():
+def create_grids(filter_label, filter_file, metallicity):
     """
     Make a large grid with these axes:
     * tau
@@ -22,13 +22,40 @@ def create_grids():
     * age
     * bump
     * rv
+
+    For a given metallicity, if the file doesn't exist, this will create a
+    file and populate the grid with models in all filters.  If the file does
+    exist, it will append any missing filters.
+
+
+    Parameters
+    ----------
+    filter_label : list of strings
+        String label(s) associated with each filter passband.  Any photometry
+        for each of these filters must have the same matching label for the
+        given passband.
+
+    filter_file : list of strings
+        Full path+file name for the transmission function for each filter.
+        Files be organized as two columns: wavelength (Angstroms) and
+        transmission.
+
+    metallicity : string
+       one of ['005','01','015','02','025','035','050']
+
+
+    Returns
+    -------
+    file_path : string
+       full path to the PEGASE model file
+    
     """
 
 
     # list of metallicities
     metallicity_list = ['005','01','015','02','025','035','050']
     # match to the chosen metallicity
-    choose_metallicity = metallicity_list.index(model_parameters.metallicity)
+    choose_metallicity = metallicity_list.index(metallicity)
 
     # list of star formation histories
     #   b = burst
@@ -55,7 +82,7 @@ def create_grids():
     age_list = age_list[age_subset]
 
     # some testing
-    fuv = np.loadtxt(model_parameters.filter_transmission_curves[0])
+    fuv = np.loadtxt(filter_files[0])
     w = fuv[:,0]
     t = fuv[:,1]
     bp = S.ArrayBandpass(w, t, name='FUV')
@@ -68,7 +95,7 @@ def create_grids():
     bp_lambda = []
     bp_trans = []
     lambda_list = np.array([])
-    for filt in model_parameters.filter_transmission_curves:
+    for filt in filter_files:
         bp_table = np.loadtxt(filt)
         new_bp = S.ArrayBandpass(bp_table[:,0], bp_table[:,1])
         bp_list.append(new_bp)
@@ -81,8 +108,10 @@ def create_grids():
     #max_lambda = np.max(np.array( [np.max( np.loadtxt(model_parameters.filter_transmission_curves[i])[:,0]) for i in range(len(model_parameters.filter_list))] ))
     
     # initialize a giant array to hold the grid of model magnitudes
-    model_mags = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list),
-                                len(model_parameters.filter_list) ))
+    temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
+    model_mags = {}
+    for f in filter_label:
+        model_mags[f] = temp_array
 
     # initialize arrays to hold the grid of masses
     model_stellar_mass = np.zeros(( len(tau_list), len(age_list) ))
@@ -130,11 +159,11 @@ def create_grids():
                 spec_slice = spec[a,:] * ext_flux
                 
                 # which requires putting the spectrum through each bandpass
-                for f in range(len(model_parameters.filter_list)):
+                for f in range(len(filter_label)):
                     #mag = S.Observation(spec_slice, bp_list[f]).effstim('ABMag')
                     #mag = S.Observation(spec_slice, bp_list[f], binset=spec_slice.wave).effstim('ABMag')
                     mag = -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
-                    model_mags[t, index[0], a, index[2], index[1], f] = mag
+                    model_mags[filter_label[f]][t, index[0], a, index[2], index[1]] = mag
                         
                 #pdb.set_trace()  
                 #temp = model_mags[t, index[0], a, index[2], index[1], :]
@@ -149,13 +178,13 @@ def create_grids():
 
                     
     # put everything in a dictionary and save it
-    readme = ['The model_mags array dimensions are as follows:',
+    readme = ['The model_mags dictionary has keys corresponding to filter(s),',
+                  'each has an array with dimensions as follows:',
                   'index 1 (n='+str(len(tau_list))+'): match to tau_list',
                   'index 2 (n='+str(len(av_list))+'): match to av_list',
                   'index 3 (n='+str(len(age_list))+'): match to age_list',
                   'index 4 (n='+str(len(bump_list))+'): match to bump_list',
                   'index 5 (n='+str(len(rv_list))+'): match to rv_list',
-                  'index 6 (n='+str(len(model_parameters.filter_list))+'): these are the magnitudes',
                   '',
                   'the model_*_mass array dimensions are: ',
                   'index 1 (n='+str(len(tau_list))+'): match to tau_list',
@@ -165,7 +194,7 @@ def create_grids():
                   'with mass = 1 m_sun.  The model_stellar_mass contains',
                   "the fraction of that mass that's in stars.", 
                   '',
-                  'This assumes a metallicity of z=0.'+model_parameters.metallicity+'.',
+                  'This assumes a metallicity of z=0.'+metallicity+'.',
                   '',
                   'This assumes a distance of 10pc.' ]
 
@@ -176,7 +205,7 @@ def create_grids():
                       'av_list': av_list, 'rv_list':rv_list, 'bump_list':bump_list,
                       'model_mags':model_mags, 'model_stellar_mass':model_stellar_mass,
                       'model_remnant_mass':model_remnant_mass, 'model_gas_mass':model_gas_mass,
-                      'filter_list':model_parameters.filter_list, 'lambda_list':lambda_list,
+                      'filter_list':filter_label, 'lambda_list':lambda_list,
                       'readme':readme}
     pickle_file = open('model_grid.pickle','wb')
     pickle.dump(model_info, pickle_file)
