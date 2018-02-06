@@ -77,7 +77,7 @@ def run_chi2():
 
     # incorporate the distance
     dist_pc = model_parameters.distance_mpc * 1e6
-    data['mag_list'] += -2.5 * np.log10(10**2 / dist_pc**2)
+    model_info['model_mags'] += -2.5 * np.log10(10**2 / dist_pc**2)
 
     ## read in the IDL sav file with [adjusted] Draine+14 AVs
     #temp = scipy.io.readsav('../modeling_pix_av/d14_av_list.sav')
