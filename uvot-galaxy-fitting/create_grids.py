@@ -58,30 +58,74 @@ def create_grids(filter_label, filter_file, metallicity):
     # match to the chosen metallicity
     choose_metallicity = metallicity_list.index(metallicity)
 
-    # list of star formation histories
-    #   b = burst
-    #   #### = tau (Myr) for exponentially declining SFH
-    #   const = constant SFH
-    #   g### = tau (Myr) for exponentially increasing SFH
-    sfh = ['b','0110','0140','0155','0170','0185','0200','0215','0235','0250','0275', 
-            '0300','0350','0400','0500','0600','0750','1000','1500','3500', 
-            'const','g020','g040','g075','g150']
-    # for now just use exponentially declining
-    tau_list = sfh[1:20]
+    # ---- if the file already exists
+    if os.path.isfile('model_grid_'+metallicity+'.pickle') == True:
 
-    # extract grid values from model_parameters
-    bump_list = model_parameters.bump_list
-    rv_list = model_parameters.rv_list
-    av_list = model_parameters.av_list
+        # get data out
+        pickle_file = open('model_grid.pickle','rb')
+        model_info = pickle.load(pickle_file)
+        pickle_file.close()
+
+        # save parameter lists
+        tau_list = model_info['tau_list']
+        age_list = model_info['age_list']
+        av_list = model_info['av_list']
+        rv_list = model_info['rv_list']
+        bump_list = model_info['bump_list']
+
+        # save model mags array
+        model_mags = model_info['model_mags']
+        # and the completed filters
+        completed_filters = model_mags.keys()
+
+        # record which filter(s) need a model grid
+        run_filter_index = [i for i in range(len(filter_label)) if filter_label[i] not in completed_filters]
+
+        # initialize a giant array to hold the grid of model magnitudes
+        temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
+        for f in filter_label[run_filter_index]:
+            model_mags[f] = temp_array
+
+        
+    # ---- if the file doesn't exist
+    if os.path.isfile('model_grid_'+metallicity+'.pickle') == True:
+
+    
+        # list of star formation histories
+        #   b = burst
+        #   #### = tau (Myr) for exponentially declining SFH
+        #   const = constant SFH
+        #   g### = tau (Myr) for exponentially increasing SFH
+        sfh = ['b','0110','0140','0155','0170','0185','0200','0215','0235','0250','0275', 
+                '0300','0350','0400','0500','0600','0750','1000','1500','3500', 
+                'const','g020','g040','g075','g150']
+        # for now just use exponentially declining
+        tau_list = sfh[1:20]
+
+        # extract grid values from model_parameters
+        bump_list = model_parameters.bump_list
+        rv_list = model_parameters.rv_list
+        av_list = model_parameters.av_list
 
 
-    # read in one spectrum to get some of the grid info
-    spec_lambda, age_list, spec, _, _, _ = writespec_info(pegase_file(__ROOT__+'/pegase_grids/', '005','b'))
+        # read in one spectrum to get some of the grid info
+        spec_lambda, age_list, spec, _, _, _ = writespec_info(pegase_file(__ROOT__+'/pegase_grids/', '005','b'))
 
-    # limit the age to 1 Myr to 13 Gyr
-    age_subset = np.where((age_list >= 1) & (age_list <= 13000))[0]
-    age_list = age_list[age_subset]
+        # limit the age to 1 Myr to 13 Gyr
+        age_subset = np.where((age_list >= 1) & (age_list <= 13000))[0]
+        age_list = age_list[age_subset]
 
+        # we'll be running all of the filter indices
+        run_filter_index = np.arange(len(filter_label))
+
+        # initialize a giant array to hold the grid of model magnitudes
+        temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
+        model_mags = {}
+        for f in filter_label:
+            model_mags[f] = temp_array
+
+
+        
     # some testing
     fuv = np.loadtxt(filter_files[0])
     w = fuv[:,0]
@@ -108,11 +152,6 @@ def create_grids(filter_label, filter_file, metallicity):
     # figure out the largest wavelength from the model spectrum to save
     #max_lambda = np.max(np.array( [np.max( np.loadtxt(model_parameters.filter_transmission_curves[i])[:,0]) for i in range(len(model_parameters.filter_list))] ))
     
-    # initialize a giant array to hold the grid of model magnitudes
-    temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
-    model_mags = {}
-    for f in filter_label:
-        model_mags[f] = temp_array
 
     # initialize arrays to hold the grid of masses
     model_stellar_mass = np.zeros(( len(tau_list), len(age_list) ))
@@ -160,7 +199,7 @@ def create_grids(filter_label, filter_file, metallicity):
                 spec_slice = spec[a,:] * ext_flux
                 
                 # which requires putting the spectrum through each bandpass
-                for f in range(len(filter_label)):
+                for f in run_filter_index:
                     #mag = S.Observation(spec_slice, bp_list[f]).effstim('ABMag')
                     #mag = S.Observation(spec_slice, bp_list[f], binset=spec_slice.wave).effstim('ABMag')
                     mag = -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
