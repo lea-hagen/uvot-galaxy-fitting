@@ -76,10 +76,14 @@ def create_grids(filter_label, filter_file, metallicity):
         # save model mags array
         model_mags = model_info['model_mags']
         # and the completed filters
-        completed_filters = model_mags.keys()
+        completed_filters = list(model_mags.keys())
 
         # record which filter(s) need a model grid
         run_filter_index = [i for i in range(len(filter_label)) if filter_label[i] not in completed_filters]
+        # if there aren't any, just exit
+        if len(run_filter_index) == 0:
+            print('create_grids: no new filters to append to grid... exiting!')
+            return
 
         # initialize a giant array to hold the grid of model magnitudes
         temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
