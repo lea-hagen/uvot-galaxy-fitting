@@ -5,9 +5,9 @@ import scipy.io
 import scipy.interpolate
 #import cPickle as pickle  # (only 2.x)
 import pickle
-import datetime
+import time
 import is_outlier#; reload(is_outlier)
-import os.path
+import os
 import pdb
 
 import model_parameters
@@ -24,21 +24,52 @@ import plot_spec_chi2
 
 
 
-def run_chi2():
+def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
+                 re_run=False):
     """
-    Run emcee on the grid models.
+    Run the modeling and create diagnostic plots
+
+
+    Parameters
+    ----------
+    mag_list : dictionary
+        dictionary with keys that are filter labels and values that are
+        AB magnitudes
+
+    mag_list_err : dictionary
+        dictionary with keys that are filter labels and values that are
+        uncertainties for the AB magnitudes
+
+    metallicity : string
+        one of ['005','01','015','02','025','035','050'], will be used to
+        read in the proper model grid
+
+    distance : float
+        distance to the galaxy in Mpc
+
+    label : string
+        a label for the region/galaxy that will be used to construct the
+        output file names
+
+    re_run : boolean (default = False)
+        if the fitting pickle file doesn't exist, the fitting will always
+        proceed, but if the file does exist, you can choose whether to re-do
+        the fitting part or just skip to the plotting
+
+
+    Returns
+    -------
+    nothing
+
     """
 
-    # choose whether to run emcee
-    run_emcee = True
-    #run_emcee = False
+    print('')
+    print('****************************')
+    print('STARTING ', label)
+    print('****************************')
+    print('')
 
-    # choose whether to redo emcee for regions that have already been done
-    #re_run = True
-    re_run = False
-
-    print('START TIME:')
-    print(datetime.datetime.now())
+    setup_start = time.time()
 
 
     # -------------------------
@@ -48,63 +79,71 @@ def run_chi2():
     print('setting up the data...')
 
     # read in the pickle file with the model grid
-    pickle_file = open('model_grid.pickle','rb')
+    pickle_file = open('model_grid_'+metallicity+'.pickle','rb')
     model_info = pickle.load(pickle_file)
     pickle_file.close()
     # change tau list to numpy array
     model_info['tau_list'] = np.array(model_info['tau_list']).astype(np.float)
+    # the wavelengths (angstroms) for each filter
+    lambda_list_long = model_info['lambda_list']
 
 
-    # read in the pickle file with magnitudes
-    pickle_file = open(model_parameters.phot_file,'rb')
-    data = pickle.load(pickle_file)
-    pickle_file.close()
-    # put desired filters into an array
-    n_region = len(data['label'])
-    n_filter = len(model_info['filter_list'])
-    data['mag_list'] = np.zeros((n_filter,n_region))
-    data['mag_list_err'] = np.zeros((n_filter,n_region))
-    for f,filt in enumerate(model_info['filter_list']):
-        data['mag_list'][f,:] = data[filt]
-        data['mag_list_err'][f,:] = data[filt+'_err']
+    # input data
+    # - list of filters, in order of increasing wavelength
+    filter_list = [model_info['filter_list'][i] for i in np.argsort(lambda_list_long)
+                       if model_info['filter_list'][i] in list(mag_list.keys()) ]
+    n_filter = len(filter_list)
+    # - wavelengths for each filter
+    lambda_list = [lam for i,lam in enumerate(lambda_list_long)
+                       if model_info['filter_list'][i] in filter_list]
+    # - make an f_nu version
+    fnu_list = np.zeros(n_filter)
+    fnu_list_err = np.zeros(n_filter)
+    for f in range(n_filter):
+        fnu_list[f] = 10**( (mag_list[filter_list[f]] + 48.6)/(-2.5) )
+        fnu_list_err[f] = fnu_list[f] / 2.5 * np.log(10) * mag_list[filter_list[f]]
+    # - save magnitudes as np.array
+    mag_list = np.array([mag_list[f] for f in filter_list])
+    mag_list_err = np.array([mag_list_err[f] for f in filter_list])
 
 
-    # incorporate the distance
-    dist_pc = model_parameters.distance_mpc * 1e6
-    model_info['model_mags'] += -2.5 * np.log10(10**2 / dist_pc**2)
+    # print out the magnitudes
+    print('')
+    print('AB magnitudes:')
+    for i in range(n_filter):
+        print(filter_list[i], '{:.3f}'.format(mag_list[i]), '+/-',
+              '{:.3f}'.format(mag_list_err[i]))
+    print('')
 
+    
     ## read in the IDL sav file with [adjusted] Draine+14 AVs
     #temp = scipy.io.readsav('../modeling_pix_av/d14_av_list.sav')
     #d14_av = temp['d14_av_list']
     ## divide the AVs in half
     #d14_av /= 2.0
     
-    
-    # also turn it into f_nu
-    data['flux_list'] = 10**( (data['mag_list'] + 48.6)/(-2.5) )
-    data['flux_list_err'] = data['flux_list'] / 2.5 * np.log(10) * data['mag_list_err']
-    
-    # the associated wavelengths (angstroms)
-    lambda_list = model_info['lambda_list']
-
+        
     #print(data['mag_list'])
     #print(data['mag_list_err'])
 
 
     
-    # make a flux version of the model grid (for interpolating)
-    model_info['model_fnu'] = 10**( (model_info['model_mags'] + 48.6)/(-2.5) )
-
     # generate the functions that will do grid interpolation for magnitudes
     grid_func = []
     for i in range(n_filter):
+        # incorporate distance
+        dist_pc = distance * 1e6
+        model_info['model_mags'][filter_list[i]] += 2.5 * np.log10(10**2 / dist_pc**2)
+        # convert to f_nu
+        model_fnu = 10**( (model_info['model_mags'][filter_list[i]] + 48.6)/(-2.5) )
+        # interpolation function
         grid_func.append( scipy.interpolate.RegularGridInterpolator(( model_info['tau_list'], 
-                                                                      model_info['av_list'], 
-                                                                      model_info['age_list'], 
-                                                                      model_info['bump_list'], 
-								                                      model_info['rv_list']), 
-                                                                      model_info['model_fnu'][:,:,:,:,:,i], 'linear', 
-                                                                      bounds_error=True, fill_value=None) )
+                                                                        model_info['av_list'], 
+                                                                        model_info['age_list'], 
+                                                                        model_info['bump_list'], 
+                                                                        model_info['rv_list']), 
+                                                                        model_fnu, 'linear', 
+                                                                        bounds_error=True, fill_value=None) )
 
     # also make functions for stellar mass
     mstar_grid_func = scipy.interpolate.RegularGridInterpolator( (model_info['tau_list'], model_info['age_list']), 
@@ -114,6 +153,16 @@ def run_chi2():
     
     #print(type(grid_func))
 
+
+    # make sure sub-directories exist
+    if not os.path.exists('./pickles/'):
+        os.makedirs('./pickles/')
+    if not os.path.exists('./plots/'):
+        os.makedirs('./plots/')
+    if not os.path.exists('./results/'):
+        os.makedirs('./results/')
+
+        
     #pdb.set_trace()
 
     # remove the giant grids from the model_info dictionary
@@ -122,101 +171,72 @@ def run_chi2():
     del model_info['model_stellar_mass']
     del model_info['readme']
 
-    
+    #pdb.set_trace()
 
+
+    
     # -------------------------
-    # run emcee
+    # run modeling
     # -------------------------
+
+    modeling_start = time.time()
 
     # number of variables we're fitting (grid + mass)
-    n_dimen = len(model_info['model_fnu'].shape)
-
-    # divide the magnitudes into groups so they can be run separately
-    n_groups = 7
-    mod_val = data['mag_list'].shape[1] / n_groups + 1   # +1 to account for remainder
+    n_dimen = 5 + 1
 
 
-    group_num = 6
-    first_index = int( group_num*mod_val )
-    last_index = int( (group_num+1)*mod_val-1 )
-    #print(group_num*mod_val, (group_num+1)*mod_val-1)
 
-    # label for files
-    file_label = data['label']
-
-
-    for choose_region in range(first_index,last_index+1):
-    #for choose_region in range(128,133):
-    #for choose_region in [1]:
-
-        print('')
-        print('****************************')
-        print('STARTING REGION ', choose_region, ' = ', file_label[choose_region])
-        print('(group ', group_num, ' does ', first_index, '-', last_index, ')')
-        print('****************************')
-        print('')
-        print('START TIME:')
-        print(datetime.datetime.now())
-        print('')
-
-        for i in range(n_filter):
-            print(model_info['filter_list'][i], '{:.3f}'.format(data['mag_list'][i,choose_region]), '+/-',
-                      '{:.3f}'.format(data['mag_list_err'][i,choose_region]))
-
-        if (run_emcee == True) and \
-            (re_run == True or \
-            (re_run == False and os.path.isfile('./pickles/chi2_'+file_label[choose_region]+'.pickle') == False)):
-            
-            print('running chi2 fitter...')
+    if (re_run == True) or (os.path.isfile('./pickles/chi2_'+label+'.pickle') == False):
+        
+        print('running chi2 fitter...')
 
     
-            sub_data = {'mag_list':np.reshape(data['mag_list'][:,choose_region], -1), \
-                        'mag_list_err':np.reshape(data['mag_list_err'][:,choose_region], -1), \
-                        'flux_list':np.reshape(data['flux_list'][:,choose_region], -1), \
-                        'flux_list_err':np.reshape(data['flux_list_err'][:,choose_region], -1) }
+        sub_data = {'mag_list':mag_list, 
+                        'mag_list_err':mag_list_err, 
+                        'flux_list':fnu_list, 
+                        'flux_list_err':fnu_list_err}
 
-            results = chi2_grid(grid_func, mstar_grid_func, model_info, sub_data)
-            # results is dictionary with keys new_chi2_grid, new_mass_grid, grid_axes
+        results = chi2_grid(grid_func, mstar_grid_func, model_info, sub_data)
+        # results is dictionary with keys new_chi2_grid, new_mass_grid, grid_axes
 
-            #pdb.set_trace()
+        #pdb.set_trace()
             
-            # save the chains from sampler object
-            print('saving chains...')
-            pickle_file = open('./pickles/chi2_'+file_label[choose_region]+'.pickle','wb')
-            pickle.dump( results, pickle_file)
-            pickle_file.close()
+        # save the chains from sampler object
+        print('saving modeling results...')
+        pickle_file = open('./pickles/chi2_'+label+'.pickle','wb')
+        pickle.dump( results, pickle_file)
+        pickle_file.close()
 
             
-        print('END TIME:')
-        print(datetime.datetime.now())
-        print('')
+    modeling_end = time.time()
     
     
-        # -------------------------
-        # analyze the results
-        # -------------------------
+    # -------------------------
+    # analyze the results
+    # -------------------------
 
-        print('analyzing results...')
+    print('analyzing results...')
 
-        # best value
-        best_val_chi2.best_val(file_label[choose_region])
+    # best value
+    best_val_chi2.best_val(label)
 
-        # triangle
-        plot_triangle_chi2.triangle(file_label[choose_region])
+    # triangle
+    plot_triangle_chi2.triangle(label)
 
-        # spectrum
-        plot_spec_chi2.spectrum(lambda_list,
-                                    data['mag_list'][:,choose_region],
-                                    data['mag_list_err'][:,choose_region],
-                                    grid_func, file_label[choose_region] )
-
-    
-    return 
+    # spectrum
+    plot_spec_chi2.spectrum(lambda_list, mag_list, mag_list_err,
+                                grid_func, label )
 
 
+    print('')
+    print('timing:')
+    print('   set-up - ', modeling_start - setup_start)
+    print('   modeling - ', modeling_end - modeling_start)
+    print('   plotting - ', time.time() - modeling_end)
+    print('')
 
 
-
+    pdb.set_trace()
 
 def chi2_grid(grid_func, mstar_grid_func, model_info, data):
     """
@@ -245,6 +265,8 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
     new_mass_grid = np.empty(length_tuple)
     new_st_mass_grid = np.empty(length_tuple)
 
+    n_filter = len(data['mag_list'])
+
     for index in np.ndindex(length_tuple):
     
         # grab the current parameters
@@ -256,8 +278,8 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
 
    
         # do grid interpolation
-        model_flux = np.empty(len(data['mag_list']))
-        for m in range(len(data['mag_list'])):
+        model_flux = np.zeros(n_filter)
+        for m in range(n_filter):
             temp = np.array([ current_tau, current_av, current_age, current_bump, current_rv ])
             model_flux[m] = grid_func[m](temp) #* 10**current_log_mass
         #model_mag = -2.5 * np.log10(model_flux) - 48.6

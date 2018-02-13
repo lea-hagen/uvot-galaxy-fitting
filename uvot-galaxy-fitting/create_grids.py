@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import math
+import os.path
 
 from config import __ROOT__
 
@@ -14,7 +15,7 @@ import spec_filter
 
 import pdb
 
-def create_grids(filter_label, filter_file, metallicity):
+def create_grids(filter_labels, filter_files, metallicity):
     """
     Make a large grid with these axes:
     * tau
@@ -32,12 +33,12 @@ def create_grids(filter_label, filter_file, metallicity):
 
     Parameters
     ----------
-    filter_label : list of strings
+    filter_labels : list of strings
         String label(s) associated with each filter passband.  Any photometry
         for each of these filters must have the same matching label for the
         given passband.
 
-    filter_file : list of strings
+    filter_files : list of strings
         Full path+file name for the transmission function for each filter.
         Files be organized as two columns: wavelength (Angstroms) and
         transmission.
@@ -62,7 +63,7 @@ def create_grids(filter_label, filter_file, metallicity):
     if os.path.isfile('model_grid_'+metallicity+'.pickle') == True:
 
         # get data out
-        pickle_file = open('model_grid.pickle','rb')
+        pickle_file = open('model_grid_'+metallicity+'.pickle','rb')
         model_info = pickle.load(pickle_file)
         pickle_file.close()
 
@@ -79,7 +80,7 @@ def create_grids(filter_label, filter_file, metallicity):
         completed_filters = list(model_mags.keys())
 
         # record which filter(s) need a model grid
-        run_filter_index = [i for i in range(len(filter_label)) if filter_label[i] not in completed_filters]
+        run_filter_index = [i for i in range(len(filter_labels)) if filter_labels[i] not in completed_filters]
         # if there aren't any, just exit
         if len(run_filter_index) == 0:
             print('create_grids: no new filters to append to grid... exiting!')
@@ -87,12 +88,18 @@ def create_grids(filter_label, filter_file, metallicity):
 
         # initialize a giant array to hold the grid of model magnitudes
         temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
-        for f in filter_label[run_filter_index]:
-            model_mags[f] = temp_array
+        for f in run_filter_index:
+            model_mags[filter_labels[f]] = temp_array
 
+        # read in one spectrum to get some of the grid info
+        spec_lambda, age_list_full, spec, _, _, _ = writespec_info(pegase_file(__ROOT__+'/pegase_grids/', '005','b'))
+
+        # get indices for the subset of the ages we're using
+        age_subset = [i for i,age in enumerate(age_list_full) if age in age_list]
+        
         
     # ---- if the file doesn't exist
-    if os.path.isfile('model_grid_'+metallicity+'.pickle') == True:
+    if os.path.isfile('model_grid_'+metallicity+'.pickle') == False:
 
     
         # list of star formation histories
@@ -120,23 +127,23 @@ def create_grids(filter_label, filter_file, metallicity):
         age_list = age_list[age_subset]
 
         # we'll be running all of the filter indices
-        run_filter_index = np.arange(len(filter_label))
+        run_filter_index = np.arange(len(filter_labels))
 
         # initialize a giant array to hold the grid of model magnitudes
         temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
         model_mags = {}
-        for f in filter_label:
+        for f in filter_labels:
             model_mags[f] = temp_array
 
 
         
-    # some testing
-    fuv = np.loadtxt(filter_files[0])
-    w = fuv[:,0]
-    t = fuv[:,1]
-    bp = S.ArrayBandpass(w, t, name='FUV')
-    sp = S.ArraySpectrum(spec_lambda, spec[5,:], name='Model', fluxunits='flam')
-    obs = S.Observation(sp, bp)
+    # some pysynphot testing
+    #fuv = np.loadtxt(filter_files[0])
+    #w = fuv[:,0]
+    #t = fuv[:,1]
+    #bp = S.ArrayBandpass(w, t, name='FUV')
+    #sp = S.ArraySpectrum(spec_lambda, spec[5,:], name='Model', fluxunits='flam')
+    #obs = S.Observation(sp, bp)
 
     # make a list of pysynphot bandpasses and their avg wavelengths
     # also plain lists of transmission info
@@ -175,11 +182,11 @@ def create_grids(filter_label, filter_file, metallicity):
         print('tau item ', str(t), ' of ', str(len(tau_list)))
 
         # read in the spectra
-        filename = pegase_file(__ROOT__+'/pegase_grids/', model_parameters.metallicity, tau_list[t] )
+        filename = pegase_file(__ROOT__+'/pegase_grids/', metallicity, tau_list[t] )
         _, _, spec, m_stellar, m_remnant, m_gas = writespec_info(filename)
 
         # put spectra at the chosen distance (erg/s/A -> erg/s/cm^2/A)
-        spec = spec / (4 * math.pi * dist^2)
+        spec = spec / (4 * math.pi * dist**2)
 
 
         # save the mass info
@@ -207,7 +214,7 @@ def create_grids(filter_label, filter_file, metallicity):
                     #mag = S.Observation(spec_slice, bp_list[f]).effstim('ABMag')
                     #mag = S.Observation(spec_slice, bp_list[f], binset=spec_slice.wave).effstim('ABMag')
                     mag = -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
-                    model_mags[filter_label[f]][t, index[0], a, index[2], index[1]] = mag
+                    model_mags[filter_labels[f]][t, index[0], a, index[2], index[1]] = mag
                         
                 #pdb.set_trace()  
                 #temp = model_mags[t, index[0], a, index[2], index[1], :]
@@ -243,13 +250,14 @@ def create_grids(filter_label, filter_file, metallicity):
                   'This assumes a distance of 10pc.' ]
 
     # change tau list to numpy array
-    tau_list = np.array(tau_list).astype(np.float)
+    # -> actually, don't, because it messes with appending new filters
+    #tau_list = np.array(tau_list).astype(np.float)
 
     model_info = {'tau_list':tau_list, 'age_list':age_list,
                       'av_list': av_list, 'rv_list':rv_list, 'bump_list':bump_list,
                       'model_mags':model_mags, 'model_stellar_mass':model_stellar_mass,
                       'model_remnant_mass':model_remnant_mass, 'model_gas_mass':model_gas_mass,
-                      'filter_list':filter_label, 'lambda_list':lambda_list,
+                      'filter_list':filter_labels, 'lambda_list':lambda_list,
                       'readme':readme}
     pickle_file = open('model_grid_'+metallicity+'.pickle','wb')
     pickle.dump(model_info, pickle_file)
