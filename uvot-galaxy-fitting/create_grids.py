@@ -87,9 +87,9 @@ def create_grids(filter_labels, filter_files, metallicity):
             return
 
         # initialize a giant array to hold the grid of model magnitudes
-        temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
+        length_tuple = ( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) )
         for f in run_filter_index:
-            model_mags[filter_labels[f]] = temp_array
+            model_mags[filter_labels[f]] = np.zeros(length_tuple)
 
         # read in one spectrum to get some of the grid info
         spec_lambda, age_list_full, spec, _, _, _ = writespec_info(pegase_file(__ROOT__+'/pegase_grids/', '005','b'))
@@ -130,10 +130,10 @@ def create_grids(filter_labels, filter_files, metallicity):
         run_filter_index = np.arange(len(filter_labels))
 
         # initialize a giant array to hold the grid of model magnitudes
-        temp_array = np.zeros(( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) ))
+        length_tuple = ( len(tau_list), len(av_list), len(age_list), len(bump_list), len(rv_list) )
         model_mags = {}
         for f in filter_labels:
-            model_mags[f] = temp_array
+            model_mags[f] = np.zeros(length_tuple)
 
 
         
@@ -213,10 +213,11 @@ def create_grids(filter_labels, filter_files, metallicity):
                 for f in run_filter_index:
                     #mag = S.Observation(spec_slice, bp_list[f]).effstim('ABMag')
                     #mag = S.Observation(spec_slice, bp_list[f], binset=spec_slice.wave).effstim('ABMag')
-                    mag = -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
-                    model_mags[filter_labels[f]][t, index[0], a, index[2], index[1]] = mag
+                    #mag = -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
+                    model_mags[filter_labels[f]][t, index[0], a, index[2], index[1]] = \
+                        -2.5 * np.log10(spec_filter.spec_filter(spec_lambda, spec_slice, bp_lambda[f], bp_trans[f])) - 48.6
                         
-                #pdb.set_trace()  
+                     
                 #temp = model_mags[t, index[0], a, index[2], index[1], :]
                 #spec_slice.convert('ABMag')
                 #plt.plot(np.log10(spec_slice.wave), spec_slice.flux)

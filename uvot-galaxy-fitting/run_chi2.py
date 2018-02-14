@@ -133,17 +133,18 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
     for i in range(n_filter):
         # incorporate distance
         dist_pc = distance * 1e6
-        model_info['model_mags'][filter_list[i]] += 2.5 * np.log10(10**2 / dist_pc**2)
         # convert to f_nu
-        model_fnu = 10**( (model_info['model_mags'][filter_list[i]] + 48.6)/(-2.5) )
+        model_fnu = 10**( (model_info['model_mags'][filter_list[i]]
+                               + 2.5 * np.log10(10**2 / dist_pc**2) + 48.6)/(-2.5) )
         # interpolation function
         grid_func.append( scipy.interpolate.RegularGridInterpolator(( model_info['tau_list'], 
                                                                         model_info['av_list'], 
                                                                         model_info['age_list'], 
                                                                         model_info['bump_list'], 
                                                                         model_info['rv_list']), 
-                                                                        model_fnu, 'linear', 
+                                                                        model_fnu[:,:,:,:,:], 'linear', 
                                                                         bounds_error=True, fill_value=None) )
+ 
 
     # also make functions for stellar mass
     mstar_grid_func = scipy.interpolate.RegularGridInterpolator( (model_info['tau_list'], model_info['age_list']), 
@@ -230,14 +231,16 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
 
     print('')
     print('timing:')
-    print('   set-up - ', modeling_start - setup_start)
-    print('   modeling - ', modeling_end - modeling_start)
-    print('   plotting - ', time.time() - modeling_end)
+    print('   set-up - ', modeling_start - setup_start, ' sec')
+    print('   modeling - ', (modeling_end - modeling_start)/60, ' min')
+    print('   plotting - ', time.time() - modeling_end, ' sec')
     print('')
 
 
     pdb.set_trace()
 
+
+    
 def chi2_grid(grid_func, mstar_grid_func, model_info, data):
     """
     This calculates the log probability for a particular set of model parameters.
@@ -254,16 +257,16 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
     age_list = np.geomspace( np.min(model_info['age_list']), np.max(model_info['age_list'])*0.999, num=11)
     #age_list = np.geomspace( 100., np.max(model_info['age_list'])*0.999, num=11)
     log_age_list = np.log10(age_list)
-    bump_list = np.linspace(0, 2, num=11) #=7)
+    bump_list = np.linspace(0, 2, num=7) #=11)
     #rv_list = model_info['rv_list']
-    rv_list = np.linspace(2, 4.5, num=16) #=9)
+    rv_list = np.linspace(2, 4.5, num=9) #=16)
     av_list = np.linspace(0.0, 1, num=6)
 
     length_tuple = ( len(tau_list), len(av_list), len(log_age_list), len(bump_list), len(rv_list) )
     
-    new_chi2_grid = np.empty(length_tuple)
-    new_mass_grid = np.empty(length_tuple)
-    new_st_mass_grid = np.empty(length_tuple)
+    new_chi2_grid = np.zeros(length_tuple)
+    new_mass_grid = np.zeros(length_tuple)
+    new_st_mass_grid = np.zeros(length_tuple)
 
     n_filter = len(data['mag_list'])
 
@@ -279,11 +282,10 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
    
         # do grid interpolation
         model_flux = np.zeros(n_filter)
+        temp = np.array([ current_tau, current_av, current_age, current_bump, current_rv ])
         for m in range(n_filter):
-            temp = np.array([ current_tau, current_av, current_age, current_bump, current_rv ])
             model_flux[m] = grid_func[m](temp) #* 10**current_log_mass
-        #model_mag = -2.5 * np.log10(model_flux) - 48.6
-
+            
 
         # calculate a mass, weighted by errors
         new_mass_grid[index] = np.average(data['flux_list']/model_flux,
@@ -295,9 +297,8 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
         # calculate chi2
         new_chi2_grid[index] = np.sum( (data['flux_list'] - new_mass_grid[index]*model_flux)**2 / data['flux_list_err']**2 )
 
+         
     #pdb.set_trace()
-
-    #print(datetime.datetime.now())
     
     # return log likelihood
     return {'new_chi2_grid':new_chi2_grid,
