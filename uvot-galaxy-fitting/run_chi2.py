@@ -9,18 +9,16 @@ import time
 #import is_outlier#; reload(is_outlier)
 import os
 import pdb
+import importlib
 
 import model_parameters
 
 import best_val_chi2
+importlib.reload(best_val_chi2)
 import plot_triangle_chi2
+importlib.reload(plot_triangle_chi2)
 import plot_spec_chi2
-
-# ============================================
-# HOW TO USE THIS FILE:
-# import run_emcee; reload(run_emcee)
-# run_emcee.run_emcee()
-# ============================================
+importlib.reload(plot_spec_chi2)
 
 
 
@@ -101,7 +99,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
     fnu_list_err = np.zeros(n_filter)
     for f in range(n_filter):
         fnu_list[f] = 10**( (mag_list[filter_list[f]] + 48.6)/(-2.5) )
-        fnu_list_err[f] = fnu_list[f] / 2.5 * np.log(10) * mag_list[filter_list[f]]
+        fnu_list_err[f] = fnu_list[f] / 2.5 * np.log(10) * mag_list_err[filter_list[f]]
     # - save magnitudes as np.array
     mag_list = np.array([mag_list[f] for f in filter_list])
     mag_list_err = np.array([mag_list_err[f] for f in filter_list])
@@ -135,7 +133,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
         dist_pc = distance * 1e6
         # convert to f_nu
         model_fnu = 10**( (model_info['model_mags'][filter_list[i]]
-                               + 2.5 * np.log10(10**2 / dist_pc**2) + 48.6)/(-2.5) )
+                               - 2.5 * np.log10(10**2 / dist_pc**2) + 48.6)/(-2.5) )
         # interpolation function
         grid_func.append( scipy.interpolate.RegularGridInterpolator(( model_info['tau_list'], 
                                                                         model_info['av_list'], 
@@ -219,7 +217,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
     print('analyzing results...')
 
     # best value
-    best_val_chi2.best_val(label)
+    best_fit = best_val_chi2.best_val(label)
 
     # triangle
     plot_triangle_chi2.triangle(label)
@@ -298,7 +296,6 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
         new_chi2_grid[index] = np.sum( (data['flux_list'] - new_mass_grid[index]*model_flux)**2 / data['flux_list_err']**2 )
 
          
-    #pdb.set_trace()
     
     # return log likelihood
     return {'new_chi2_grid':new_chi2_grid,
