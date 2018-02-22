@@ -3,6 +3,7 @@ import matplotlib
 matplotlib.interactive(False)
 import matplotlib.pyplot as plt
 import pickle
+import pdb
 
 import model_parameters
 import best_val_chi2
@@ -35,8 +36,15 @@ def triangle(file_label, verbose=False):
     # load the best fit values
     best_fit = best_val_chi2.best_val(file_label, verbose=False)
 
+    # indices to plot (accounting for parameters held constant)
+    plot_index = []
+    for i,axis in enumerate(results['axis_order']):
+        if len(results['grid_axes'][axis]) > 1:
+            plot_index.append(i)
     # number of dimensions to fit
-    n_dimen = len(results['axis_order'])
+    n_dimen = len(plot_index)
+    # total number of parameters
+    n_param = len(results['axis_order'])
 
     # calculate ln(P) from chi^2
     ln_p = -0.5 * results['new_chi2_grid']
@@ -46,18 +54,18 @@ def triangle(file_label, verbose=False):
     #fig.subplots_adjust(hspace=0.05)
     #fig, ax = plt.subplots(n_dimen-1, n_dimen-1, sharex=True, figsize=(10,10))
 
-    for i in range(n_dimen):
+    for i,pi in enumerate(plot_index):
 
 
-        for j in range(i,n_dimen):
+        for j,pj in enumerate(plot_index[i:], i):
 
  
             #ax[j,i].set_xlim([-9,9])
             #ax[j,i].set_ylim([-9,9])
 
-            axis_label_i = results['axis_order'][i]
+            axis_label_i = results['axis_order'][pi]
             best_val_i = best_fit[axis_label_i[:-5]]
-            axis_label_j = results['axis_order'][j]
+            axis_label_j = results['axis_order'][pj]
             best_val_j = best_fit[axis_label_j[:-5]]
 
             if i != j:
@@ -72,7 +80,7 @@ def triangle(file_label, verbose=False):
                     print('     i='+str(i) + ', j='+str(j))
 
                 # smash the ln_p array along the other dimensions
-                axis_smash = np.delete(np.arange(n_dimen), [i,j]) 
+                axis_smash = np.delete(np.arange(n_param), [pi,pj]) 
                 plot_ln_p = np.log( np.sum(np.exp(ln_p), axis=tuple(axis_smash)) )
                 # set -inf to the minimum non-inf value
                 plot_ln_p[plot_ln_p == -np.inf] = np.min(plot_ln_p[plot_ln_p != -np.inf])
@@ -137,7 +145,7 @@ def triangle(file_label, verbose=False):
                 ax = plt.gca()
 
                 # smash the ln_p array along the other dimensions
-                axis_smash = np.delete(np.arange(n_dimen), [i]) 
+                axis_smash = np.delete(np.arange(n_param), [pi]) 
                 plot_ln_p = np.log( np.sum(np.exp(ln_p), axis=tuple(axis_smash)) )
 
                 # do some plotting
@@ -145,6 +153,7 @@ def triangle(file_label, verbose=False):
                              marker='.', markersize=10)
                 plt.xlim(np.min(results['grid_axes'][axis_label_i]), np.max(results['grid_axes'][axis_label_i]))
                 ax.set_yticklabels([])
+                
                 
         # clear non-plotted areas
         #for j in range(0,i+1):
