@@ -288,7 +288,7 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
     else:
         rv_list = np.array([const_param['rv']])
 
-    if const_param['rv'] == -99:
+    if const_param['av'] == -99:
         av_list = np.linspace(0.0, 1, num=6)
     else:
         av_list = np.array([const_param['av']])
@@ -329,7 +329,6 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
         # calculate chi2
         new_chi2_grid[index] = np.sum( (data['flux_list'] - new_mass_grid[index]*model_flux)**2 / data['flux_list_err']**2 )
 
-         
     
     # return log likelihood
     return {'new_chi2_grid':new_chi2_grid,
