@@ -23,7 +23,9 @@ importlib.reload(plot_spec_chi2)
 
 
 def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
-                 re_run=False):
+                 re_run=False,
+                 const_tau=-99, const_age=-99,
+                 const_av=-99, const_rv=-99, const_bump=-99):
     """
     Run the modeling and create diagnostic plots
 
@@ -53,6 +55,10 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
         if the fitting pickle file doesn't exist, the fitting will always
         proceed, but if the file does exist, you can choose whether to re-do
         the fitting part or just skip to the plotting
+
+    const_tau, const_age, const_av, const_rv, const_bump : float (default = -99)
+        if so inclined, hold a particular parameter constant at the specified
+        value (the default of -99 means leave as free parameter)
 
 
     Returns
