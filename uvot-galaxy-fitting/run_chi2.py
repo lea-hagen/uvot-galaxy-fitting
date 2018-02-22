@@ -23,7 +23,9 @@ importlib.reload(plot_spec_chi2)
 
 
 def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
-                 re_run=False):
+                 re_run=False,
+                 const_tau=-99, const_age=-99,
+                 const_av=-99, const_rv=-99, const_bump=-99):
     """
     Run the modeling and create diagnostic plots
 
@@ -53,6 +55,10 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
         if the fitting pickle file doesn't exist, the fitting will always
         proceed, but if the file does exist, you can choose whether to re-do
         the fitting part or just skip to the plotting
+
+    const_tau, const_age, const_av, const_rv, const_bump : float (default = -99)
+        if so inclined, hold a particular parameter constant at the specified
+        value (the default of -99 means leave as free parameter)
 
 
     Returns
@@ -189,13 +195,18 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
         
         print('running chi2 fitter...')
 
-    
+
+        # the observed magnitudes/fluxes
         sub_data = {'mag_list':mag_list, 
                         'mag_list_err':mag_list_err, 
                         'flux_list':fnu_list, 
                         'flux_list_err':fnu_list_err}
 
-        results = chi2_grid(grid_func, mstar_grid_func, model_info, sub_data)
+        # holding things constant
+        const_param = {'tau':const_tau, 'age':const_age,
+                           'av':const_av, 'rv':const_rv, 'bump':const_bump}
+
+        results = chi2_grid(grid_func, mstar_grid_func, model_info, sub_data, const_param)
         # results is dictionary with keys new_chi2_grid, new_mass_grid, grid_axes
 
         #pdb.set_trace()
@@ -239,7 +250,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
 
 
     
-def chi2_grid(grid_func, mstar_grid_func, model_info, data):
+def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
     """
     This calculates the log probability for a particular set of model parameters.
     
@@ -247,19 +258,42 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
     the model magnitudes, then calculate log likelihood (-0.5 * chi2).
 
     grid_func - the list of functions from the grid interpolator
+    mstar_grid_func - the list of functions from the stellar mass (M*) grid interpolator
     model_info - a dictionary with the grid info
-    data - a dictionary with the magnitudes/errors & fluxes/errors & assumed A_V
+    data - a dictionary with the magnitudes/errors & fluxes/errors
+    const_param - dictionary with info about any parameters held constant
     """
 
-    tau_list = np.linspace(model_info['tau_list'][0], 1000, num=10)
-    age_list = np.geomspace( np.min(model_info['age_list']), np.max(model_info['age_list'])*0.999, num=11)
-    #age_list = np.geomspace( 100., np.max(model_info['age_list'])*0.999, num=11)
-    log_age_list = np.log10(age_list)
-    bump_list = np.linspace(0, 2, num=7) #=11)
-    #rv_list = model_info['rv_list']
-    rv_list = np.linspace(2, 4.5, num=9) #=16)
-    av_list = np.linspace(0.0, 1, num=6)
+    if const_param['tau'] == -99:
+        tau_list = np.linspace(model_info['tau_list'][0], 1000, num=10)
+    else:
+        tau_list = np.array([const_param['tau']])
+    
+    if const_param['age'] == -99:
+        age_list = np.geomspace( np.min(model_info['age_list']), np.max(model_info['age_list'])*0.999, num=11)
+        #age_list = np.geomspace( 100., np.max(model_info['age_list'])*0.999, num=11)
+        log_age_list = np.log10(age_list)
+    else:
+        age_list = np.array([const_param['age']])
+        log_age_list = np.log10(age_list)
 
+    if const_param['bump'] == -99:
+        bump_list = np.linspace(0, 2, num=7) #=11)
+    else:
+        bump_list = np.array([const_param['bump']])
+
+    if const_param['rv'] == -99:
+        #rv_list = model_info['rv_list']
+        rv_list = np.linspace(2, 4.5, num=9) #=16)
+    else:
+        rv_list = np.array([const_param['rv']])
+
+    if const_param['av'] == -99:
+        av_list = np.linspace(0.0, 1, num=6)
+    else:
+        av_list = np.array([const_param['av']])
+
+        
     length_tuple = ( len(tau_list), len(av_list), len(log_age_list), len(bump_list), len(rv_list) )
     
     new_chi2_grid = np.zeros(length_tuple)
@@ -295,7 +329,6 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data):
         # calculate chi2
         new_chi2_grid[index] = np.sum( (data['flux_list'] - new_mass_grid[index]*model_flux)**2 / data['flux_list_err']**2 )
 
-         
     
     # return log likelihood
     return {'new_chi2_grid':new_chi2_grid,

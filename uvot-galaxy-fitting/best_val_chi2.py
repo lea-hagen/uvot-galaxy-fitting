@@ -68,6 +68,7 @@ def best_val(file_label, verbose=True):
     if verbose == True:
         print('   best tau, av, log_age, bump, rv, log_mass, log_stellar_mass:')
         print('   ', best_val, '  ', best_log_mass, '  ', best_log_st_mass)
+        print('   chi2 of best fit: ', np.min(results['new_chi2_grid']))
         print('')
 
         
