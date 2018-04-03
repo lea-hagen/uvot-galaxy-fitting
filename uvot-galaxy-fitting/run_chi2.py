@@ -98,7 +98,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
                        if model_info['filter_list'][i] in list(mag_list.keys()) ]
     n_filter = len(filter_list)
     # - wavelengths for each filter
-    lambda_list = [lam for i,lam in enumerate(lambda_list_long)
+    lambda_list = [lambda_list_long[i] for i in np.argsort(lambda_list_long)
                        if model_info['filter_list'][i] in filter_list]
     # - make an f_nu version
     fnu_list = np.zeros(n_filter)
@@ -140,6 +140,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
         # convert to f_nu
         model_fnu = 10**( (model_info['model_mags'][filter_list[i]]
                                - 2.5 * np.log10(10**2 / dist_pc**2) + 48.6)/(-2.5) )
+        #pdb.set_trace()
         # interpolation function
         grid_func.append( scipy.interpolate.RegularGridInterpolator(( model_info['tau_list'], 
                                                                         model_info['av_list'], 
@@ -270,8 +271,8 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
         tau_list = np.array([const_param['tau']])
     
     if const_param['age'] == -99:
-        age_list = np.geomspace( np.min(model_info['age_list']), np.max(model_info['age_list'])*0.999, num=11)
-        #age_list = np.geomspace( 100., np.max(model_info['age_list'])*0.999, num=11)
+        #age_list = np.geomspace( np.min(model_info['age_list']), np.max(model_info['age_list'])*0.999, num=11)
+        age_list = np.geomspace( 100., np.max(model_info['age_list'])*0.999, num=11)
         log_age_list = np.log10(age_list)
     else:
         age_list = np.array([const_param['age']])
@@ -284,7 +285,8 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
 
     if const_param['rv'] == -99:
         #rv_list = model_info['rv_list']
-        rv_list = np.linspace(2, 4.5, num=9) #=16)
+        #rv_list = np.linspace(2, 4.5, num=9) #=16)
+        rv_list = np.linspace(2, 4, num=9)
     else:
         rv_list = np.array([const_param['rv']])
 
@@ -329,6 +331,7 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
         # calculate chi2
         new_chi2_grid[index] = np.sum( (data['flux_list'] - new_mass_grid[index]*model_flux)**2 / data['flux_list_err']**2 )
 
+        #pdb.set_trace()
     
     # return log likelihood
     return {'new_chi2_grid':new_chi2_grid,
