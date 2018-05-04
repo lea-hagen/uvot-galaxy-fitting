@@ -120,17 +120,6 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
     print('')
 
     
-    ## read in the IDL sav file with [adjusted] Draine+14 AVs
-    #temp = scipy.io.readsav('../modeling_pix_av/d14_av_list.sav')
-    #d14_av = temp['d14_av_list']
-    ## divide the AVs in half
-    #d14_av /= 2.0
-    
-        
-    #print(data['mag_list'])
-    #print(data['mag_list_err'])
-
-
     
     # generate the functions that will do grid interpolation for magnitudes
     grid_func = []
@@ -246,8 +235,7 @@ def run_chi2(mag_list, mag_list_err, metallicity, distance, label,
     print('')
 
 
-    pdb.set_trace()
-
+    
 
     
 def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
@@ -288,7 +276,7 @@ def chi2_grid(grid_func, mstar_grid_func, model_info, data, const_param):
         rv_list = np.array([const_param['rv']])
 
     if const_param['av'] == -99:
-        av_list = np.linspace(0.0, 1, num=6)
+        av_list = np.linspace(0.0, 1.5, num=8)
     else:
         av_list = np.array([const_param['av']])
 
