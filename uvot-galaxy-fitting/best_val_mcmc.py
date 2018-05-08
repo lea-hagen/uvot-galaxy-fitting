@@ -26,7 +26,7 @@ def best_val(file_label, chain, verbose=True):
     Returns
     -------
     best_fits : dict
-        dictionary of the best fits (saved as strings) for each parameter
+        dictionary of the best fits for each parameter
 
     """
 
@@ -48,15 +48,15 @@ def best_val(file_label, chain, verbose=True):
         if len(chain[param]) > 1:
             best_val, hi_err, lo_err = get_vals(chain[param])
             results_file.write(best_val + ' ' + hi_err + ' ' + lo_err + '  ')
-            best_fit[param] = best_val
-            best_fit[param+'_hi_err'] = hi_err
-            best_fit[param+'_lo_err'] = lo_err
+            best_fit[param] = float(best_val)
+            best_fit[param+'_hi_err'] = float(hi_err)
+            best_fit[param+'_lo_err'] = float(lo_err)
         # if the parameter was held constant
         else:
             results_file.write('{0:.4f}'.format(chain[param][0]) + ' -99 -99  ')
-            best_fit[param] = '{0:.4f}'.format(chain[param][0])
-            best_fit[param+'_hi_err'] = '-99'
-            best_fit[param+'_lo_err'] = '-99'
+            best_fit[param] = chain[param][0]
+            best_fit[param+'_hi_err'] = -99
+            best_fit[param+'_lo_err'] = -99
 
     
 
@@ -65,16 +65,15 @@ def best_val(file_label, chain, verbose=True):
     if verbose == True:
         print('best fits:')
         for param in ['tau','av','log_age','bump','rv','log_mass','log_st_mass']:
-            print(param + ':  ' + best_fit[param]
-                      + ' +' + best_fit[param+'_hi_err'] + ' -' + best_fit[param+'_lo_err'])
+            print(param + ':  ' + '{0:.4f}'.format(best_fit[param])
+                      + ' +' + '{0:.4f}'.format(best_fit[param+'_hi_err'])
+                      + ' -' + '{0:.4f}'.format(best_fit[param+'_lo_err']) )
 
         
 
     # close the file
     results_file.write('\n')
     results_file.close()
-
-    pdb.set_trace()
 
 
     return best_fit
