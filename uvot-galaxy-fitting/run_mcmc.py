@@ -14,6 +14,8 @@ import importlib
 
 import model_parameters
 
+import make_chains_mcmc
+importlib.reload(make_chains_mcmc)
 import best_val_mcmc
 importlib.reload(best_val_mcmc)
 import plot_triangle_mcmc
@@ -185,8 +187,8 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
     n_dimen = 5 + 1
 
     # list of parameters we're fitting
-    temp_param = ['tau','av','log_age','bump','rv','log_mass']
-    fit_param = [p for p in temp_param if const_param[p] == -99]
+    all_param = ['tau','av','log_age','bump','rv','log_mass']
+    fit_param = [p for p in all_param if const_param[p] == -99]
     n_fit = len(fit_param)
     
         
@@ -206,21 +208,20 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
         if const_param['av'] == -99:
             temp.append(np.random.uniform(low=np.min(model_info['av_list']),
                                             high=np.max(model_info['av_list'])) )
-        if const_param['age'] == -99:
-            temp.append(np.log10( np.random.uniform(low=np.min(model_info['age_list']),
-                                            high=np.max(model_info['age_list'])) ))
+        if const_param['log_age'] == -99:
+            temp.append(np.random.uniform(low=np.log10(np.min(model_info['age_list'])),
+                                            high=np.log10(np.max(model_info['age_list'])) ))
         if const_param['bump'] == -99:
             temp.append(np.random.uniform(low=np.min(model_info['bump_list']),
                                             high=np.max(model_info['bump_list'])) )
         if const_param['rv'] == -99:
             temp.append(np.random.uniform(low=np.min(model_info['rv_list']),
                                             high=np.max(model_info['rv_list'])) )
-        if const_param['mass'] == -99:
-            temp.append(np.random.uniform(low=5, high=7) )
+        if const_param['log_mass'] == -99:
+            temp.append(np.random.uniform(low=6, high=8) )
 
         
         init_pos.append( np.array(temp) )
-
 
 
     # do the running
@@ -238,9 +239,13 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
                         'flux_list_err':fnu_list_err}
 
         # emcee
+        # - initialize sampler
         sampler = emcee.EnsembleSampler(n_walkers, n_fit, lnprob,
                                             args=(grid_func, model_info, obs_phot, fit_param, const_param))
+        # - run modeling
         sampler.run_mcmc(init_pos, n_steps)
+
+        
 
 
         #pdb.set_trace()
@@ -248,7 +253,8 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
         # save the chains from sampler object
         print('saving modeling results...')
         pickle_file = open('./pickles/mc_'+label+'.pickle','wb')
-        pickle.dump( results, pickle_file)
+        results = {'sampler':sampler, 'fit_param':fit_param, 'const_param':const_param}
+        pickle.dump(results, pickle_file)
         pickle_file.close()
 
             
@@ -261,20 +267,27 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
 
     print('analyzing results...')
 
+
+    # extract chains
+    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func)
+    
     # best value
-    best_fit = best_val_mcmc.best_val(label)
+    best_fit = best_val_mcmc.best_val(label, chains)
 
     # triangle
-    plot_triangle_mcmc.triangle(label)
-
-    # chains
-    plot_chains_mcmc.chains(label, burn_in)
+    plot_triangle_mcmc.plot_triangle(label, chains)
 
     # spectrum
     plot_spec_mcmc.spectrum(lambda_list, mag_list, mag_list_err,
-                                grid_func, label )
+                                grid_func, best_fit, label )
 
 
+    print('')
+    print('timing:')
+    print('   set-up - ', modeling_start - setup_start, ' sec')
+    print('   modeling - ', (modeling_end - modeling_start)/60, ' min')
+    print('   plotting - ', time.time() - modeling_end, ' sec')
+    print('')
 
 
 def lnprob(theta, grid_func, model_info, data, fit_param, const_param):
