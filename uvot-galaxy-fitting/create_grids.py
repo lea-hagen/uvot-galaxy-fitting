@@ -15,7 +15,7 @@ import spec_filter
 
 import pdb
 
-def create_grids(filter_labels, filter_files, metallicity):
+def create_grids(filter_labels, filter_files, metallicity, dust_geom='screen'):
     """
     Make a large grid with these axes:
     * tau
@@ -46,6 +46,11 @@ def create_grids(filter_labels, filter_files, metallicity):
     metallicity : string
        one of ['005','01','015','02','025','035','050']
 
+    dust_geom : string (default='screen')
+        If set to 'screen', dust will be in a sheet in front of the whole
+        stellar population.  If set to 'disk', the dust will be in an
+        infinitely thin disk with half the stars in front and half behind.  
+
 
     Returns
     -------
@@ -53,6 +58,14 @@ def create_grids(filter_labels, filter_files, metallicity):
     
     """
 
+    # make a file name
+    if dust_geom == 'screen':
+        grid_file = 'model_grid_'+metallicity+'_screen.pickle'
+    if dust_geom == 'disk':
+        grid_file = 'model_grid_'+metallicity+'_disk.pickle'
+    if (dust_geom != 'screen') and (dust_geom != 'disk'):
+        print('create_grids: must choose screen or disk!')
+        return
 
     # list of metallicities
     metallicity_list = ['005','01','015','02','025','035','050']
@@ -60,10 +73,10 @@ def create_grids(filter_labels, filter_files, metallicity):
     choose_metallicity = metallicity_list.index(metallicity)
 
     # ---- if the file already exists
-    if os.path.isfile('model_grid_'+metallicity+'.pickle') == True:
+    if os.path.isfile(grid_file) == True:
 
         # get data out
-        pickle_file = open('model_grid_'+metallicity+'.pickle','rb')
+        pickle_file = open(grid_file,'rb')
         model_info = pickle.load(pickle_file)
         pickle_file.close()
 
@@ -99,7 +112,7 @@ def create_grids(filter_labels, filter_files, metallicity):
         
         
     # ---- if the file doesn't exist
-    if os.path.isfile('model_grid_'+metallicity+'.pickle') == False:
+    if os.path.isfile(grid_file) == False:
 
     
         # list of star formation histories
@@ -206,8 +219,12 @@ def create_grids(filter_labels, filter_files, metallicity):
              
             # apply it to each age slice of the spectrum
             for a in range(len(age_list)):
-                #spec_slice = S.ArraySpectrum(spec_lambda, spec[a,:] * ext_flux, fluxunits='flam')
-                spec_slice = spec[a,:] * ext_flux
+                if dust_geom == 'screen':
+                    #spec_slice = S.ArraySpectrum(spec_lambda, spec[a,:] * ext_flux, fluxunits='flam')
+                    spec_slice = spec[a,:] * ext_flux
+                if dust_geom == 'disk':
+                    # 0.5 * spec + 0.5 * spec * ext_flux
+                    spec_slice = 0.5*spec[a,:] * (1 + ext_flux)
                 
                 # which requires putting the spectrum through each bandpass
                 for f in run_filter_index:
@@ -260,7 +277,7 @@ def create_grids(filter_labels, filter_files, metallicity):
                       'model_remnant_mass':model_remnant_mass, 'model_gas_mass':model_gas_mass,
                       'filter_list':filter_labels, 'lambda_list':lambda_list,
                       'readme':readme}
-    pickle_file = open('model_grid_'+metallicity+'.pickle','wb')
+    pickle_file = open(grid_file,'wb')
     pickle.dump(model_info, pickle_file)
     pickle_file.close()
 
