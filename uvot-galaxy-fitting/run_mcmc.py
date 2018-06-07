@@ -26,7 +26,7 @@ importlib.reload(plot_spec_mcmc)
 
 
 
-def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
+def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='screen',
                  n_walkers=2000, n_steps=2000, burn_in=800,
                  re_run=False,
                  const_tau=-99, const_age=-99,
@@ -56,6 +56,11 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
     label : string
         a label for the region/galaxy that will be used to construct the
         output file names
+
+    dust_geom : string (default='screen')
+        If set to 'screen', dust will be in a sheet in front of the whole
+        stellar population.  If set to 'disk', the dust will be in an
+        infinitely thin disk with half the stars in front and half behind.  
 
     n_walkers : int (default = 2000)
         number of MCMC walkers 
@@ -99,8 +104,16 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label,
 
     print('setting up the data...')
 
+
+    
     # read in the pickle file with the model grid
-    pickle_file = open('model_grid_'+metallicity+'.pickle','rb')
+    if dust_geom == 'screen':
+        pickle_file = open('model_grid_'+metallicity+'_screen.pickle','rb')
+    if dust_geom == 'disk':
+        pickle_file = open('model_grid_'+metallicity+'_disk.pickle','rb')
+    if (dust_geom != 'screen') and (dust_geom != 'disk'):
+        print('run_mcmc: must choose screen or disk!')
+        return
     model_info = pickle.load(pickle_file)
     pickle_file.close()
     # change tau list to numpy array
