@@ -10,7 +10,7 @@ import best_val_chi2
 def spectrum(lambda_list, mag, mag_err, grid_func,
                  best_fit, file_label, verbose=False):
     """
-    Make a spectrum of the data and the best-fit model
+    Make a spectrum of the data and the best-fit model, and save the model magnitudes
 
     The best-fit parameters are extracted using the file_label with best_val_chi2.py
 
@@ -54,6 +54,11 @@ def spectrum(lambda_list, mag, mag_err, grid_func,
     ax.set_ylim(ax.get_ylim()[::-1])
     plt.xlabel('Log Wavelength (A)')
     plt.ylabel('AB Mag')
+
+    # file to save the model magnitudes
+    model_file = open('./results/modelmag_'+str(file_label)+'.list','w')
+    model_file.write('# wavelength (A)     model (AB mag) \n')
+   
     
     # grab the model magnitudes for the best fit
     model_mag = np.empty(len(lambda_list))
@@ -62,6 +67,10 @@ def spectrum(lambda_list, mag, mag_err, grid_func,
                               best_fit['bump'], best_fit['rv'] ])
         model_mag[m] = -2.5 * np.log10( grid_func[m](temp) * 10**best_fit['log_mass'] ) - 48.6
 
+        model_file.write(' ' + str(lambda_list[m]) + '      ' + str(model_mag[m]) + '\n')
+
+    # close file
+    model_file.close()
 
     if verbose == True:
         print('best-fit model magnitudes:')
