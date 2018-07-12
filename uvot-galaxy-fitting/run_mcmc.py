@@ -29,9 +29,9 @@ importlib.reload(plot_spec_mcmc)
 def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='screen',
                  n_walkers=2000, n_steps=2000, burn_in=800,
                  re_run=False,
-                 const_tau=-99, const_age=-99,
-                 const_av=-99, const_rv=-99, const_bump=-99,
-                 const_mass=-99):
+                 const_tau=None, const_age=None,
+                 const_av=None, const_rv=None, const_bump=None,
+                 const_mass=None):
     """
     Run the modeling and create diagnostic plots
 
@@ -77,9 +77,9 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
         proceed, but if the file does exist, you can choose whether to re-do
         the fitting part or just skip to the plotting
 
-    const_tau, const_age, const_av, const_rv, const_bump, const_mass : float (default = -99)
+    const_tau, const_age, const_av, const_rv, const_bump, const_mass : float (default = None)
         if so inclined, hold a particular parameter constant at the specified
-        value (the default of -99 means leave as free parameter).  Note that
+        value (the default of None means leave as free parameter).  Note that
         age and mass are LOG10 values (e.g., 10^3 Myr should be entered as 3)
 
 
@@ -201,7 +201,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
     # list of parameters we're fitting
     all_param = ['tau','av','log_age','bump','rv','log_mass']
-    fit_param = [p for p in all_param if const_param[p] == -99]
+    fit_param = [p for p in all_param if const_param[p] == None]
     n_fit = len(fit_param)
     
         
@@ -215,22 +215,22 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
     for i in range(n_walkers):
 
         temp = []
-        if const_param['tau'] == -99:
+        if const_param['tau'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['tau_list']),
                                             high=np.max(model_info['tau_list'])) )
-        if const_param['av'] == -99:
+        if const_param['av'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['av_list']),
                                             high=np.max(model_info['av_list'])) )
-        if const_param['log_age'] == -99:
+        if const_param['log_age'] == None:
             temp.append(np.random.uniform(low=np.log10(np.min(model_info['age_list'])),
                                             high=np.log10(np.max(model_info['age_list'])) ))
-        if const_param['bump'] == -99:
+        if const_param['bump'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['bump_list']),
                                             high=np.max(model_info['bump_list'])) )
-        if const_param['rv'] == -99:
+        if const_param['rv'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['rv_list']),
                                             high=np.max(model_info['rv_list'])) )
-        if const_param['log_mass'] == -99:
+        if const_param['log_mass'] == None:
             temp.append(np.random.uniform(low=6, high=8) )
 
         
@@ -338,7 +338,7 @@ def lnprob(theta, grid_func, model_info, data, fit_param, const_param):
 
     # grab the current parameters
     # - the values held constant
-    current_val = {key:const_param[key] for key in const_param.keys() if const_param[key] != -99}
+    current_val = {key:const_param[key] for key in const_param.keys() if const_param[key] != None}
     # - the values fit by emcee
     for i in range(len(fit_param)):
         current_val[fit_param[i]] = theta[i]
