@@ -23,7 +23,7 @@ importlib.reload(plot_triangle_mcmc)
 import plot_spec_mcmc
 importlib.reload(plot_spec_mcmc)
 
-
+import pdb
 
 
 def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='screen',
@@ -266,7 +266,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                         'mag_list_err':mag_list_err, 
                         'flux_list':fnu_list, 
                         'flux_list_err':fnu_list_err}
-
+            
         # emcee
         # - initialize sampler
         sampler = emcee.EnsembleSampler(n_walkers, n_fit, lnprob,
@@ -282,7 +282,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
         # save the chains from sampler object
         print('saving modeling results...')
         pickle_file = open('./pickles/mc_'+label+'.pickle','wb')
-        results = {'sampler':sampler, 'fit_param':fit_param, 'const_param':const_param}
+        results = {'sampler':sampler, 'fit_param':fit_param, 'const_param':const_param, 'two_pop':two_pop}
         pickle.dump(results, pickle_file)
         pickle_file.close()
 
@@ -298,7 +298,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
 
     # extract chains
-    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func)
+    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop)
     
     # best value
     best_fit = best_val_mcmc.best_val(label, chains)
@@ -308,7 +308,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
     # spectrum
     plot_spec_mcmc.spectrum(lambda_list, mag_list, mag_list_err,
-                                grid_func, best_fit, label )
+                                grid_func, best_fit, label, two_pop )
 
 
     print('')
