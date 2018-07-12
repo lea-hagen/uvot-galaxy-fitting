@@ -8,7 +8,7 @@ import model_parameters
 import best_val_chi2
 
 def spectrum(lambda_list, mag, mag_err, grid_func,
-                 best_fit, file_label, verbose=False):
+                 best_fit, file_label, two_pop, verbose=False):
     """
     Make a spectrum of the data and the best-fit model, and save the model magnitudes
 
@@ -34,6 +34,9 @@ def spectrum(lambda_list, mag, mag_err, grid_func,
 
     file_label : string
         the label associated with the region/galaxy
+
+    two_pop : dict or None
+        if set, contains the dictionary with tau/log_age for a second population
         
     verbose : boolean
         set to True to print out model magnitudes
@@ -61,14 +64,26 @@ def spectrum(lambda_list, mag, mag_err, grid_func,
    
     
     # grab the model magnitudes for the best fit
-    model_mag = np.empty(len(lambda_list))
+    model_mag = np.zeros(len(lambda_list))
     for m in range(len(lambda_list)):
+        
         temp = np.array([ best_fit['tau'], best_fit['av'], 10**(best_fit['log_age']),
                               best_fit['bump'], best_fit['rv'] ])
-        model_mag[m] = -2.5 * np.log10( grid_func[m](temp) * 10**best_fit['log_mass'] ) - 48.6
+        model_flux = grid_func[m](temp) * 10**best_fit['log_mass']
+        
+        # possibly do another constant population too
+        if two_pop != None:
+            temp = np.array([two_pop['tau'], best_fit['av'], 10**two_pop['log_age'],
+                                 best_fit['bump'], best_fit['rv'] ])
+            model_flux_2 = grid_func[m](temp) * 10**best_fit['log_mass'] * 10**best_fit['log_mass_ratio']
+            model_flux += model_flux_2
 
+        # flux -> AB mag
+        model_mag[m] = -2.5 * np.log10(model_flux) - 48.6
+        # write it out
         model_file.write(' ' + str(lambda_list[m]) + '      ' + str(model_mag[m]) + '\n')
 
+        
     # close file
     model_file.close()
 
