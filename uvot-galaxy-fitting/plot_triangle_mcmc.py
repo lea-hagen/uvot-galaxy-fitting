@@ -24,9 +24,9 @@ def plot_triangle(file_label, chain):
     """
 
     # figure out which chains to plot
-    param_list = ['tau','av','log_age','bump','rv','log_mass']
+    param_list = ['av','rv','bump','log_age','log_mass','tau']
     if 'log_mass_ratio' in chain.keys():
-        param_list.append('log_mass_ratio')
+        param_list = ['av','rv','bump','log_age','log_mass','log_mass_ratio','tau']
         
     plot_param = [p for p in param_list if len(chain[p]) > 1]
 
