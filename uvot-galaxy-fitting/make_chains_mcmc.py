@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pdb
 
 
-def make_chains(file_label, burn_in, mstar_grid_func):
+def make_chains(file_label, burn_in, mstar_grid_func, two_pop):
     """
     Read in the MCMC results and create chains
     * length for fitted parameters: n_walkers*n_steps
@@ -24,6 +24,9 @@ def make_chains(file_label, burn_in, mstar_grid_func):
 
     mstar_grid_func : function
         function to convert tau + age into the fraction of mass that's stellar
+
+    two_pop : dict or None
+        if set, contains the dictionary with tau/log_age for a second population
 
     Returns
     -------
