@@ -181,7 +181,6 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                                                                       bounds_error=True, fill_value=None)
 
 
-
     # holding things constant
     const_param = {'tau':const_tau, 'log_age':const_age, 'av':const_av,
                        'rv':const_rv, 'bump':const_bump, 'log_mass':const_mass}
@@ -248,7 +247,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
         if two_pop != None:
             if const_param['log_mass_ratio'] == None:
-                temp.append(np.random.uniform(low=-2, high=2) )
+                temp.append(np.random.uniform(low=-2, high=3) )
         
         init_pos.append( np.array(temp) )
 
@@ -376,7 +375,7 @@ def lnprob(theta, grid_func, model_info, data, fit_param, const_param, two_pop):
         or current_val['rv'] > np.max(model_info['rv_list']):
         return -np.inf
     if two_pop != None:
-        if current_val['log_mass_ratio'] < -5 or current_val['log_mass_ratio'] > 5:
+        if current_val['log_mass_ratio'] < -2 or current_val['log_mass_ratio'] > 5:
             return -np.inf
     
     # do grid interpolation
