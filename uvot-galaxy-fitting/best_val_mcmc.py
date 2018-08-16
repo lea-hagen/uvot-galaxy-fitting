@@ -35,14 +35,21 @@ def best_val(file_label, chain, verbose=True):
     # a file to save the results
     results_file = open('./results/results_'+str(file_label)+'.list','w')
     results_file.write('#  value  upper_uncertainty   lower_uncertainty   (errors are -99 for parameters held constant) \n')
-    results_file.write('#   tau           av          log_age        bump        rv         log_mass    log_stellar_mass \n')
 
+    #pdb.set_trace()
+    if 'log_mass_ratio' not in chain.keys():
+        param_list = ['tau','av','log_age','bump','rv','log_mass','log_st_mass']
+        results_file.write('#   tau                      av                    log_age               bump                  rv                    log_mass              log_stellar_mass \n')
+    else:
+        param_list = ['tau','av','log_age','bump','rv','log_mass','log_mass_ratio','log_st_mass']
+        results_file.write('#   tau                      av                    log_age               bump                  rv                    log_mass              log_mass_ratio        log_stellar_mass \n')
+        
     # a dictionary to save the best fits
     best_fit = {}
 
     # calculate best fits
     
-    for param in ['tau','av','log_age','bump','rv','log_mass','log_st_mass']:
+    for param in param_list:
         
         # if the parameter was fit by emcee
         if len(chain[param]) > 1:
@@ -64,7 +71,7 @@ def best_val(file_label, chain, verbose=True):
     # print it all out
     if verbose == True:
         print('best fits:')
-        for param in ['tau','av','log_age','bump','rv','log_mass','log_st_mass']:
+        for param in param_list:
             print(param + ':  ' + '{0:.4f}'.format(best_fit[param])
                       + ' +' + '{0:.4f}'.format(best_fit[param+'_hi_err'])
                       + ' -' + '{0:.4f}'.format(best_fit[param+'_lo_err']) )

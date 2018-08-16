@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pdb
 
 
-def make_chains(file_label, burn_in, mstar_grid_func):
+def make_chains(file_label, burn_in, mstar_grid_func, two_pop):
     """
     Read in the MCMC results and create chains
     * length for fitted parameters: n_walkers*n_steps
@@ -25,6 +25,9 @@ def make_chains(file_label, burn_in, mstar_grid_func):
     mstar_grid_func : function
         function to convert tau + age into the fraction of mass that's stellar
 
+    two_pop : dict or None
+        if set, contains the dictionary with tau/log_age for a second population
+
     Returns
     -------
     chains : dict
@@ -44,6 +47,7 @@ def make_chains(file_label, burn_in, mstar_grid_func):
     fit_param = results['fit_param']
     n_fit = len(fit_param)
     const_param = results['const_param']
+    two_pop = results['two_pop']
 
     # number of walkers/steps/fits
     n_walkers, n_steps, n_fit = sampler.chain.shape
@@ -74,7 +78,7 @@ def make_chains(file_label, burn_in, mstar_grid_func):
 
     chain = {}
     
-    for param in ['tau','av','log_age','bump','rv','log_mass']:        
+    for param in const_param.keys():        
         # if the parameter was fit by emcee
         if param in fit_param:
             ind = fit_param.index(param)
@@ -87,6 +91,10 @@ def make_chains(file_label, burn_in, mstar_grid_func):
     # calculate stellar mass
 
     max_length = np.max(np.array([ len(chain['tau']), len(chain['log_age']), len(chain['log_mass']) ]))
+
+    if two_pop != None:
+        max_length = np.max(np.array([ len(chain['tau']), len(chain['log_age']),
+                                           len(chain['log_mass']), len(chain['log_mass_ratio']) ]))
 
     chain['log_st_mass'] = np.zeros(max_length)
 
@@ -106,9 +114,22 @@ def make_chains(file_label, burn_in, mstar_grid_func):
             mass = 10**chain['log_mass'][0]
         else:
             mass = 10**chain['log_mass'][i]
+        # log_mass_ratio
+        if two_pop != None:
+            if len(chain['log_mass_ratio']) == 1:
+                mass_ratio = 10**chain['log_mass_ratio'][0]
+            else:
+                mass_ratio = 10**chain['log_mass_ratio'][i]
+            
         # all together now
-        chain['log_st_mass'][i] = np.log10(mstar_grid_func(np.array([tau, age])) * mass)
-
+        pop1 = mstar_grid_func(np.array([tau, age])) * mass
+        # - one pop
+        if two_pop == None:
+            chain['log_st_mass'][i] = np.log10(pop1)
+        # - two pop
+        if two_pop != None:
+            pop2 = mstar_grid_func(np.array([two_pop['tau'], 10**two_pop['log_age']])) * mass * mass_ratio
+            chain['log_st_mass'][i] = np.log10( pop1 + pop2 )
 
         
     # return the chain info

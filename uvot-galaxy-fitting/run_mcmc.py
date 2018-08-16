@@ -23,15 +23,16 @@ importlib.reload(plot_triangle_mcmc)
 import plot_spec_mcmc
 importlib.reload(plot_spec_mcmc)
 
-
+import pdb
 
 
 def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='screen',
                  n_walkers=2000, n_steps=2000, burn_in=800,
                  re_run=False,
-                 const_tau=-99, const_age=-99,
-                 const_av=-99, const_rv=-99, const_bump=-99,
-                 const_mass=-99):
+                 const_tau=None, const_age=None,
+                 const_av=None, const_rv=None, const_bump=None,
+                 const_mass=None, const_mass_ratio=None,
+                 two_pop=None):
     """
     Run the modeling and create diagnostic plots
 
@@ -77,10 +78,15 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
         proceed, but if the file does exist, you can choose whether to re-do
         the fitting part or just skip to the plotting
 
-    const_tau, const_age, const_av, const_rv, const_bump, const_mass : float (default = -99)
+    const_tau, const_age, const_av, const_rv, const_bump, const_mass, const_mass_ratio : float (default = None)
         if so inclined, hold a particular parameter constant at the specified
-        value (the default of -99 means leave as free parameter).  Note that
-        age and mass are LOG10 values (e.g., 10^3 Myr should be entered as 3)
+        value (the default of None means leave as free parameter).  Note that
+        age/mass/mass_ratio are LOG10 values (e.g., 10^3 Myr should be entered
+        as 3).  const_mass_ratio will be ignored unless two_pop is set.
+
+    two_pop : dict or None (default=None)
+       If you want to have add a second stellar population, put it here.
+       Should be a dictionary with keys of 'tau' and 'log_age' (both in Myr).
 
 
     Returns
@@ -175,10 +181,11 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                                                                       bounds_error=True, fill_value=None)
 
 
-
     # holding things constant
     const_param = {'tau':const_tau, 'log_age':const_age, 'av':const_av,
                        'rv':const_rv, 'bump':const_bump, 'log_mass':const_mass}
+    if two_pop != None:
+        const_param['log_mass_ratio'] = const_mass_ratio
 
 
     # make sure sub-directories exist
@@ -198,10 +205,15 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
     # max number of variables we're fitting (grid + mass)
     n_dimen = 5 + 1
+    # and also possibly the mass ratio
+    if two_pop != None:
+        n_dimen += 1
 
     # list of parameters we're fitting
     all_param = ['tau','av','log_age','bump','rv','log_mass']
-    fit_param = [p for p in all_param if const_param[p] == -99]
+    if two_pop != None:
+        all_param.append('log_mass_ratio')
+    fit_param = [p for p in all_param if const_param[p] == None]
     n_fit = len(fit_param)
     
         
@@ -215,24 +227,27 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
     for i in range(n_walkers):
 
         temp = []
-        if const_param['tau'] == -99:
+        if const_param['tau'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['tau_list']),
                                             high=np.max(model_info['tau_list'])) )
-        if const_param['av'] == -99:
+        if const_param['av'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['av_list']),
                                             high=np.max(model_info['av_list'])) )
-        if const_param['log_age'] == -99:
+        if const_param['log_age'] == None:
             temp.append(np.random.uniform(low=np.log10(np.min(model_info['age_list'])),
                                             high=np.log10(np.max(model_info['age_list'])) ))
-        if const_param['bump'] == -99:
+        if const_param['bump'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['bump_list']),
                                             high=np.max(model_info['bump_list'])) )
-        if const_param['rv'] == -99:
+        if const_param['rv'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['rv_list']),
                                             high=np.max(model_info['rv_list'])) )
-        if const_param['log_mass'] == -99:
+        if const_param['log_mass'] == None:
             temp.append(np.random.uniform(low=6, high=8) )
 
+        if two_pop != None:
+            if const_param['log_mass_ratio'] == None:
+                temp.append(np.random.uniform(low=-2, high=3) )
         
         init_pos.append( np.array(temp) )
 
@@ -250,11 +265,11 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                         'mag_list_err':mag_list_err, 
                         'flux_list':fnu_list, 
                         'flux_list_err':fnu_list_err}
-
+            
         # emcee
         # - initialize sampler
         sampler = emcee.EnsembleSampler(n_walkers, n_fit, lnprob,
-                                            args=(grid_func, model_info, obs_phot, fit_param, const_param))
+                                            args=(grid_func, model_info, obs_phot, fit_param, const_param, two_pop))
         # - run modeling
         sampler.run_mcmc(init_pos, n_steps)
 
@@ -266,7 +281,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
         # save the chains from sampler object
         print('saving modeling results...')
         pickle_file = open('./pickles/mc_'+label+'.pickle','wb')
-        results = {'sampler':sampler, 'fit_param':fit_param, 'const_param':const_param}
+        results = {'sampler':sampler, 'fit_param':fit_param, 'const_param':const_param, 'two_pop':two_pop}
         pickle.dump(results, pickle_file)
         pickle_file.close()
 
@@ -282,7 +297,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
 
     # extract chains
-    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func)
+    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop)
     
     # best value
     best_fit = best_val_mcmc.best_val(label, chains)
@@ -292,7 +307,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
     # spectrum
     plot_spec_mcmc.spectrum(lambda_list, mag_list, mag_list_err,
-                                grid_func, best_fit, label )
+                                grid_func, best_fit, label, two_pop )
 
 
     print('')
@@ -303,7 +318,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
     print('')
 
 
-def lnprob(theta, grid_func, model_info, data, fit_param, const_param):
+def lnprob(theta, grid_func, model_info, data, fit_param, const_param, two_pop):
     """
     This calculates the log probability for a particular set of model parameters.
     
@@ -333,12 +348,15 @@ def lnprob(theta, grid_func, model_info, data, fit_param, const_param):
     const_param : dict
         dictionary with info about any parameters held constant
 
+    two_pop : dict or None
+        if set, the tau/age for a second population (see run_mcmc docstring)
+
 
     """
 
     # grab the current parameters
     # - the values held constant
-    current_val = {key:const_param[key] for key in const_param.keys() if const_param[key] != -99}
+    current_val = {key:const_param[key] for key in const_param.keys() if const_param[key] != None}
     # - the values fit by emcee
     for i in range(len(fit_param)):
         current_val[fit_param[i]] = theta[i]
@@ -356,14 +374,27 @@ def lnprob(theta, grid_func, model_info, data, fit_param, const_param):
         or current_val['rv'] < np.min(model_info['rv_list']) \
         or current_val['rv'] > np.max(model_info['rv_list']):
         return -np.inf
+    if two_pop != None:
+        if current_val['log_mass_ratio'] < -2 or current_val['log_mass_ratio'] > 5:
+            return -np.inf
     
     # do grid interpolation
     model_flux = np.zeros(len(data['mag_list']))
+    
     for m in range(len(data['mag_list'])):
+        
         temp = np.array([ current_val['tau'], current_val['av'], 10**(current_val['log_age']),
                               current_val['bump'], current_val['rv'] ])
         model_flux[m] = grid_func[m](temp) * 10**current_val['log_mass']
-    model_mag = -2.5 * np.log10(model_flux) - 48.6
+
+        # possibly do another constant population too
+        if two_pop != None:
+            temp = np.array([two_pop['tau'], current_val['av'], 10**two_pop['log_age'],
+                                 current_val['bump'], current_val['rv'] ])
+            model_flux_2 = grid_func[m](temp) * 10**current_val['log_mass'] * 10**current_val['log_mass_ratio']
+            model_flux[m] += model_flux_2
+        
+    #model_mag = -2.5 * np.log10(model_flux) - 48.6
 
 
     # calculate chi2

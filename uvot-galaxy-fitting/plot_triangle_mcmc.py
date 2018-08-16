@@ -24,7 +24,11 @@ def plot_triangle(file_label, chain):
     """
 
     # figure out which chains to plot
-    plot_param = [p for p in ['tau','av','log_age','bump','rv','log_mass'] if len(chain[p]) > 1]
+    param_list = ['av','rv','bump','log_age','log_mass','tau']
+    if 'log_mass_ratio' in chain.keys():
+        param_list = ['av','rv','bump','log_age','log_mass','log_mass_ratio','tau']
+        
+    plot_param = [p for p in param_list if len(chain[p]) > 1]
 
     # need to put the chains into a giant array
     flatchain = np.zeros(( len(plot_param), len(chain[plot_param[0]]) ))
