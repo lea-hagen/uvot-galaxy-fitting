@@ -32,7 +32,8 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                  const_tau=None, const_age=None,
                  const_av=None, const_rv=None, const_bump=None,
                  const_mass=None, const_mass_ratio=None,
-                 two_pop=None):
+                 two_pop=None,
+                 remove_outliers=False):
     """
     Run the modeling and create diagnostic plots
 
@@ -87,6 +88,10 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
     two_pop : dict or None (default=None)
        If you want to have add a second stellar population, put it here.
        Should be a dictionary with keys of 'tau' and 'log_age' (both in Myr).
+
+    remove_outliers : boolean (default=False)
+       If this is set to True, the chain for A_V will be used to find outliers,
+       defined using the MAD (see make_chains_mcmc.py for more details)
 
 
     Returns
@@ -297,7 +302,8 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
 
     # extract chains
-    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop)
+    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop,
+                                              remove_outliers=remove_outliers)
     
     # best value
     best_fit = best_val_mcmc.best_val(label, chains)
