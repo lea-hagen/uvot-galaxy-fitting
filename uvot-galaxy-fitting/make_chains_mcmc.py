@@ -1,10 +1,11 @@
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+from astropy.stats import median_absolute_deviation
 import pdb
 
 
-def make_chains(file_label, burn_in, mstar_grid_func, two_pop):
+def make_chains(file_label, burn_in, mstar_grid_func, two_pop, remove_outliers=False):
     """
     Read in the MCMC results and create chains
     * length for fitted parameters: n_walkers*n_steps
@@ -27,6 +28,12 @@ def make_chains(file_label, burn_in, mstar_grid_func, two_pop):
 
     two_pop : dict or None
         if set, contains the dictionary with tau/log_age for a second population
+
+    remove_outliers : boolean (default=False)
+        if set, outliers will be removed, using the criteria of 
+        information from:
+        http://stackoverflow.com/questions/11882393/matplotlib-disregard-outliers-when-plotting/11886564#11886564
+        https://stats.stackexchange.com/questions/123895/mad-formula-for-outlier-detection
 
     Returns
     -------
@@ -72,6 +79,15 @@ def make_chains(file_label, burn_in, mstar_grid_func, two_pop):
 
     # make a flat chain
     flatchain = np.reshape(cut_chains, (-1, n_fit))
+
+    # remove outliers
+    if remove_outliers == True and 'av' in fit_param:
+        ind = fit_param.index('av')
+        diff = np.abs(flatchain[:,ind] - np.median(flatchain[:,ind]))
+        med_abs_deviation = np.median(diff)
+        mod_z_score = 0.6745 * diff / med_abs_deviation
+        bad = mod_z_score > 3.5
+        flatchain = flatchain[~bad,:]
 
 
     # save the main parameters
