@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import corner
 
 
-def plot_triangle(file_label, chain):
+def plot_triangle(file_label, chain, best_fit):
     """
     Create a simple triangle plot for the results
 
@@ -16,6 +16,10 @@ def plot_triangle(file_label, chain):
     chain : dict
         the trimmed and flattened chains (length N for fitted, length 1 for
         held constant), output from make_chains_mcmc.py
+
+    best_fit : dict
+        the dictionary with the best-fit values (and errors) output from best_val_mcmc.py
+
 
     Returns
     -------
@@ -35,13 +39,17 @@ def plot_triangle(file_label, chain):
     for p, param in enumerate(plot_param):
         flatchain[p] = chain[param]
     flatchain = np.transpose(flatchain)
+
+    # set "truths" to be the "best" value
+    truths = [best_fit[p+'_best'] for p in plot_param]
     
     # choose the sigmas for contours
     #sigmas = np.array([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
     #c_levels = {'levels':1.0 - np.exp( -0.5 * sigmas **2 ) }
     
-    fig = corner.corner(flatchain, labels=plot_param, \
-                              quantiles=[0.16,0.5,0.84], verbose=False)#, hist2d_kwargs=c_levels)
+    fig = corner.corner(flatchain, labels=plot_param,
+                            quantiles=[0.16,0.5,0.84], verbose=False,
+                            truths=truths)#, hist2d_kwargs=c_levels)
     plt.figure(figsize=(8,8))
     fig.savefig('./plots/triangle_'+file_label+'.pdf')
     plt.close(fig)
