@@ -309,11 +309,11 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
     best_fit = best_val_mcmc.best_val(label, chains)
 
     # triangle
-    plot_triangle_mcmc.plot_triangle(label, chains)
+    plot_triangle_mcmc.plot_triangle(label, chains, best_fit)
 
     # spectrum
     plot_spec_mcmc.spectrum(lambda_list, mag_list, mag_list_err,
-                                grid_func, best_fit, label, two_pop )
+                                grid_func, best_fit, label, two_pop, best=True )
 
 
     print('')
