@@ -47,8 +47,24 @@ def best_val(file_label, chain, verbose=True):
     # a dictionary to save the best fits
     best_fit = {}
 
-    # calculate best fits
+
     
+    # calculate best fits
+
+    # start with finding the highest probability in N-dimensional space
+    # (use two steps because otherwise the histogram fills up memory)
+    data_array = np.array([chain[p] for p in param_list]).T
+    hist, hist_edge = np.histogramdd(data_array, bins=7)
+    new_range = [(hist_edge[i][ np.max([0,ind[0]-1]) ],
+                      hist_edge[i][ np.min([ind[0]+2,hist.shape[i]]) ])
+                     for i,ind in enumerate(np.where(hist == np.max(hist)))]
+    hist, hist_edge = np.histogramdd(data_array, bins=5, range=new_range)
+    hist_best_val = {}
+    for i,ind in enumerate(np.where(hist == np.max(hist))):
+        hist_best_val[param_list[i]] = (hist_edge[i][ind] + hist_edge[i][ind+1])/2
+        #pdb.set_trace()
+        
+   
     for param in param_list:
         
         # if the parameter was fit by emcee
@@ -58,12 +74,14 @@ def best_val(file_label, chain, verbose=True):
             best_fit[param] = float(best_val)
             best_fit[param+'_hi_err'] = float(hi_err)
             best_fit[param+'_lo_err'] = float(lo_err)
+            best_fit[param+'_best'] = hist_best_val[param][0]
         # if the parameter was held constant
         else:
             results_file.write('{0:.4f}'.format(chain[param][0]) + ' -99 -99  ')
             best_fit[param] = chain[param][0]
             best_fit[param+'_hi_err'] = -99
             best_fit[param+'_lo_err'] = -99
+            best_fit[param+'_best'] = chain[param][0]
 
     
 
@@ -74,7 +92,8 @@ def best_val(file_label, chain, verbose=True):
         for param in param_list:
             print(param + ':  ' + '{0:.4f}'.format(best_fit[param])
                       + ' +' + '{0:.4f}'.format(best_fit[param+'_hi_err'])
-                      + ' -' + '{0:.4f}'.format(best_fit[param+'_lo_err']) )
+                      + ' -' + '{0:.4f}'.format(best_fit[param+'_lo_err'])
+                      + ', best=' + '{0:.4f}'.format(best_fit[param+'_best']) )
 
         
 
