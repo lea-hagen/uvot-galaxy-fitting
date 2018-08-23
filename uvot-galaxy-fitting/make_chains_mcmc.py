@@ -38,7 +38,7 @@ def make_chains(file_label, burn_in, mstar_grid_func, two_pop, remove_outliers=F
     Returns
     -------
     chains : dict
-        dictionary of the chains for each parameter
+        dictionary of the chains for each parameter, and their MCMC log probabilities
 
     """
 
@@ -76,9 +76,11 @@ def make_chains(file_label, burn_in, mstar_grid_func, two_pop, remove_outliers=F
     
     # cut off the burn-in period
     cut_chains = sampler.chain[:,burn_in:,:]
+    cut_lnprob = sampler.lnprobability[:,burn_in:]
 
     # make a flat chain
     flatchain = np.reshape(cut_chains, (-1, n_fit))
+    flat_lnprob = np.reshape(cut_lnprob, -1)
 
     # remove outliers
     if remove_outliers == True and 'av' in fit_param:
@@ -88,6 +90,7 @@ def make_chains(file_label, burn_in, mstar_grid_func, two_pop, remove_outliers=F
         mod_z_score = 0.6745 * diff / med_abs_deviation
         bad = mod_z_score > 3.5
         flatchain = flatchain[~bad,:]
+        flat_lnprob = flat_lnprob[~bad]
 
 
     # save the main parameters
@@ -147,6 +150,9 @@ def make_chains(file_label, burn_in, mstar_grid_func, two_pop, remove_outliers=F
             pop2 = mstar_grid_func(np.array([two_pop['tau'], 10**two_pop['log_age']])) * mass * mass_ratio
             chain['log_st_mass'][i] = np.log10( pop1 + pop2 )
 
+            
+    # put the lnprob info into the chain dictionary too
+    chain['lnprob'] = flat_lnprob
         
     # return the chain info
     return chain
