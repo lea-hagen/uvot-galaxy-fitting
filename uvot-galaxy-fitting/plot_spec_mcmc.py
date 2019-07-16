@@ -7,6 +7,8 @@ import pickle
 import model_parameters
 import best_val_chi2
 
+import pdb
+
 def spectrum(lambda_list, mag, mag_err, grid_func,
                  best_fit, file_label, two_pop,
                  best=False, verbose=False):
@@ -73,25 +75,16 @@ def spectrum(lambda_list, mag, mag_err, grid_func,
     b_str = ''
     if best:
         b_str = '_best'
-    
-    model_mag = np.zeros(len(lambda_list))
-    for m in range(len(lambda_list)):
-        
-        temp = np.array([ best_fit['tau'+b_str], best_fit['av'+b_str], 10**(best_fit['log_age'+b_str]),
-                              best_fit['bump'+b_str], best_fit['rv'+b_str] ])
-        model_flux = grid_func[m](temp) * 10**best_fit['log_mass'+b_str]
-        
-        # possibly do another constant population too
-        if two_pop != None:
-            temp = np.array([two_pop['tau'], best_fit['av'+b_str], 10**two_pop['log_age'],
-                                 best_fit['bump'+b_str], best_fit['rv'+b_str] ])
-            model_flux_2 = grid_func[m](temp) * 10**best_fit['log_mass'+b_str] * 10**best_fit['log_mass_ratio'+b_str]
-            model_flux += model_flux_2
 
-        # flux -> AB mag
-        model_mag[m] = -2.5 * np.log10(model_flux) - 48.6
-        # write it out
-        model_file.write(' ' + str(lambda_list[m]) + '      ' + str(model_mag[m]) + '\n')
+    # calculate model magnitudes
+    params = set([key.replace('_lo_err','').replace('_hi_err','').replace('_best','')
+                                        for key in best_fit.keys()])
+    input_dict = {p:best_fit[p+b_str] for p in params}
+    model_mag = calc_model_mag(grid_func, input_dict, two_pop=two_pop)
+    
+    # write it out
+    [model_file.write(' ' + str(lambda_list[m]) + '      ' + str(model_mag[m]) + '\n')
+         for m in range(len(model_mag)) ]
 
         
     # close file
@@ -107,3 +100,49 @@ def spectrum(lambda_list, mag, mag_err, grid_func,
     #plt.show()
     plt.savefig('./plots/spectrum_'+file_label+'.pdf')
     plt.close()
+
+
+
+
+def calc_model_mag(grid_func, model_val, two_pop=None):
+    """
+    The math for going from model parameters -> model magnitudes
+    
+
+    Parameters
+    ----------
+    grid_func : list of functions
+        a list of functions, where each function outputs the model f_nu for each filter
+
+    model_val : dict
+        dictionary with the values at which to evaluate the model grid: tau, av, log_age, bump, rv, log_mass, and possibly log_mass_ratio (used only if two_pop is set)
+
+    two_pop : dict or None
+        if set, contains the dictionary with tau/log_age for a second population
+
+    Returns
+    -------
+    model_mag : array of floats
+        the model magnitudes
+
+    """
+
+    model_mag = np.zeros(len(grid_func))
+    for m in range(len(grid_func)):
+
+        temp = np.array([ model_val['tau'], model_val['av'], 10**model_val['log_age'],
+                            model_val['bump'], model_val['rv'] ])
+        model_flux = grid_func[m](temp) * 10**model_val['log_mass']
+        
+        # possibly do another constant population too
+        if two_pop != None:
+            temp = np.array([two_pop['tau'], model_val['av'], 10**two_pop['log_age'],
+                                model_val['bump'], model_val['rv'] ])
+            model_flux_2 = grid_func[m](temp) * 10**model_val['log_mass'] * 10**model_val['log_mass_ratio']
+            model_flux += model_flux_2
+
+        # flux -> AB mag
+        model_mag[m] = -2.5 * np.log10(model_flux) - 48.6
+
+    
+    return model_mag

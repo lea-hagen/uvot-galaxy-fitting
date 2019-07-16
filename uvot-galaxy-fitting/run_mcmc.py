@@ -33,7 +33,8 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                  const_av=None, const_rv=None, const_bump=None,
                  const_mass=None, const_mass_ratio=None,
                  two_pop=None,
-                 remove_outliers=False):
+                 remove_outliers=False,
+                 bimodal_check=False):
     """
     Run the modeling and create diagnostic plots
 
@@ -92,6 +93,9 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
     remove_outliers : boolean (default=False)
        If this is set to True, the chain for A_V will be used to find outliers,
        defined using the MAD (see make_chains_mcmc.py for more details)
+
+    bimodal_check : boolean (default=False)
+       Set to True to enable the checking for bimodality in make_chains_mcmc.py
 
 
     Returns
@@ -237,7 +241,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
                                             high=np.max(model_info['tau_list'])) )
         if const_param['av'] == None:
             temp.append(np.random.uniform(low=np.min(model_info['av_list']),
-                                            high=np.max(model_info['av_list'])) )
+                                            high=1.5) )
         if const_param['log_age'] == None:
             temp.append(np.random.uniform(low=np.log10(np.min(model_info['age_list'])),
                                             high=np.log10(np.max(model_info['age_list'])) ))
@@ -252,7 +256,7 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
         if two_pop != None:
             if const_param['log_mass_ratio'] == None:
-                temp.append(np.random.uniform(low=-2, high=3) )
+                temp.append(np.random.uniform(low=-2, high=0.5) )
         
         init_pos.append( np.array(temp) )
 
@@ -302,18 +306,29 @@ def run_mcmc(mag_list, mag_list_err, metallicity, distance, label, dust_geom='sc
 
 
     # extract chains
-    chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop,
-                                              remove_outliers=remove_outliers)
+    print('   - chains')
+    if bimodal_check:
+        chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop,
+                                                remove_outliers=remove_outliers,
+                                                bimodal_check={'mags':mag_list,
+                                                                   'mag_err':mag_list_err,
+                                                                   'grid_func':grid_func})
+    else:
+        chains = make_chains_mcmc.make_chains(label, burn_in, mstar_grid_func, two_pop,
+                                                remove_outliers=remove_outliers)
     
     # best value
+    print('   - best fits')
     best_fit = best_val_mcmc.best_val(label, chains)
 
     # triangle
+    print('   - triangle')
     plot_triangle_mcmc.plot_triangle(label, chains, best_fit)
 
     # spectrum
+    print('   - SED')
     plot_spec_mcmc.spectrum(lambda_list, mag_list, mag_list_err,
-                                grid_func, best_fit, label, two_pop, best=True )
+                                grid_func, best_fit, label, two_pop)#, best=True )
 
 
     print('')
@@ -381,7 +396,7 @@ def lnprob(theta, grid_func, model_info, data, fit_param, const_param, two_pop):
         or current_val['rv'] > np.max(model_info['rv_list']):
         return -np.inf
     if two_pop != None:
-        if current_val['log_mass_ratio'] < -2 or current_val['log_mass_ratio'] > 5:
+        if current_val['log_mass_ratio'] < -2 or current_val['log_mass_ratio'] > 4:
             return -np.inf
     
     # do grid interpolation
@@ -405,7 +420,7 @@ def lnprob(theta, grid_func, model_info, data, fit_param, const_param, two_pop):
 
     # calculate chi2
     # -> remove NaNs and 0 fluxes (the data>0 works to filter nans too)
-    use = [data['flux_list'] > 0.0] 
+    use = data['flux_list'] > 0.0
     #chi2 = np.sum( (data['mag_list'] - model_mag)**2 / data['mag_list_err']**2 )
     chi2 = np.sum( (data['flux_list'][use] - model_flux[use])**2 / data['flux_list_err'][use]**2 )
 
